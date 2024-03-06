@@ -242,3 +242,18 @@ main {
     transform: translateY(-5px);
 
 }
+
+/* Alert Window */
+
+.alertWindow {
+    width: 100vw;
+    height: 100vh;
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    background-color: #fefefe;
+
+    overflow-x: hidden;
+    z-index: 1;
+}
