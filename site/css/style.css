@@ -48,6 +48,7 @@ textarea {
 
 :root {
     --green: #0a9508;
+    --red: #ff0000;
 
     --p-small: 15px;
     --p-medium: 20px;
@@ -63,6 +64,15 @@ textarea {
     --b-circle: 50%;
 }
 
+.check {
+    background-color: var(--green) !important;
+    color: #fff !important;
+}
+
+.danger {
+    background-color: var(--red) !important;
+    color: #fff !important;
+}
 /* Header */
 
 header {
@@ -194,7 +204,41 @@ main {
     background-color: #a8b921;
 }
 .alarm {
-    background-color: red !important;
+    background-color: var(--red) !important;
 }
 
 /* Main */
+
+/* Objects */
+
+.objectsContainer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-direction: column;
+    width: 100%;
+
+    padding: 50px;
+}
+
+.objectsItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+
+    padding: var(--p-medium);
+    border-radius: var(--b-small);
+    margin: 20px auto;
+
+    background-color: #fefefe;
+
+    box-shadow: 0 0 10px 0 #000;
+    cursor: pointer;
+    transition: .3s;
+}
+
+.objectsItem:hover {
+    transform: translateY(-5px);
+
+}
