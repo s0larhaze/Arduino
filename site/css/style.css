@@ -257,3 +257,13 @@ main {
     overflow-x: hidden;
     z-index: 1;
 }
+
+.back {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: var(--b-medium) var(--b-large);
+    border-radius: var(--b-small);
+    margin-right: var(--m-medium);
+}
