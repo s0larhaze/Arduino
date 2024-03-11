@@ -36,7 +36,6 @@ export default class ObjectItem {
                 e: 14,
                 ob1: 14,
                 date: "2023-12-06, 23:50:21",
-                workingHours: "5:30",
             },
             {
                 name: "Воронеж база1",
@@ -47,11 +46,10 @@ export default class ObjectItem {
                 e: 14,
                 ob1: 14,
                 date: "2024-05-08, 23:50:21",
-                workingHours: "5:25",
             },
             {
                 name: "Воронеж база1",
-                status: 0,
+                status: 2,
                 i: 12,
                 u: 12,
                 Cconst: 14,
@@ -81,6 +79,7 @@ export default class ObjectItem {
         this.selectYear = document.createElement("SELECT");
         this.selectMonth = document.createElement("SELECT");
         this.selectDay = document.createElement("SELECT");
+        this.table = document.createElement("TABLE");
 
         // Кнопка назад
         this.back.textContent = "<";
@@ -129,6 +128,10 @@ export default class ObjectItem {
         this.selectDay.classList.add("select_day");
         this.fillSelectDay();
 
+        // Таблица
+        this.fillTableHead();
+        this.fillTableBody();
+
         // Заполняем шапку
         this.header.appendChild(this.back);
         this.header.appendChild(this.startCheck);
@@ -143,53 +146,11 @@ export default class ObjectItem {
         this.selectTimeline.appendChild(this.selectMonth);
         this.selectTimeline.appendChild(this.selectDay);
 
+        // Добавляем таблицу
+        this.tableContainer.appendChild(this.table);
+
         this.self.appendChild(this.header);
         this.self.appendChild(this.main);
-
-        // <main>
-        //     <div class="selectTimeline">
-        //         <select class="select_year" name="selectYear">
-        //             <option value="null">Выберите год</option>
-        //             <option value="2024">2024</option>
-        //         </select>
-        //
-        //         <select class="select_month" name="selectMonth">
-        //             <option value="null">Выберите месяц</option>
-        //             <option value="may">май</option>
-        //         </select>
-        //
-        //         <select class="select_day" name="selectDay">
-        //             <option value="null">Выберите день</option>
-        //             <option value="11">11</option>
-        //         </select>
-        //     </div>
-        //     <div class="table_container">
-        //         <table>
-        //             <thead>
-        //                 <tr>
-        //                     <th class="empty_cell"></th>
-        //                     <td class="sortU U">U</td>
-        //                     <td class="sortI I">I</td>
-        //                     <td class="sortC C">C</td>
-        //                     <td class="sortP P">P</td>
-        //                     <td class="P-const">P-const</td>
-        //                     <td class="sortTime">Расчетное время работы</td>
-        //                 </tr>
-        //             </thead>
-        //             <tbody>
-        //                 <tr>
-        //                     <th>11:00</th>
-        //                     <td class="sortU">12</td>
-        //                     <td class="sortI">11</td>
-        //                     <td class="sortC">90</td>
-        //                     <td class="sortP">14</td>
-        //                     <td class="P-const">15</td>
-        //                     <td class="sortTime">5:49</td>
-        //                 </tr>
-        //             </tbody>
-        //         </table>
-        //     </div>
-        // </main>
     }
 
     finish() {
@@ -389,5 +350,67 @@ export default class ObjectItem {
             op.value = item;
             this.selectDay.appendChild(op);
         });
+    }
+
+    fillTableHead() {
+        const thead = document.createElement("THEAD");
+        const tr = document.createElement("TR");
+        const th = document.createElement("TH");
+        const sortU = document.createElement("TD");
+        const sortI = document.createElement("TD");
+        const sortC = document.createElement("TD");
+        const sortP = document.createElement("TD");
+        const p_const = document.createElement("TD");
+        const sortTime = document.createElement("TD");
+
+        th.textContent = this.data[0].name;
+        sortU.textContent = "U";
+        sortI.textContent = "I";
+        sortC.textContent = "C";
+        sortP.textContent = "P";
+        p_const.textContent = "P-const";
+        sortTime.textContent = "Расчетное время работы";
+
+        this.table.appendChild(thead);
+        thead.appendChild(tr);
+        tr.appendChild(th);
+        tr.appendChild(sortU);
+        tr.appendChild(sortI);
+        tr.appendChild(sortC);
+        tr.appendChild(sortP);
+        tr.appendChild(p_const);
+        tr.appendChild(sortTime);
+    }
+
+    fillTableBody() {
+        const tbody = document.createElement("TBODY");
+        this.data.forEach((item, i) => {
+            const tr = document.createElement("TR");
+            const th = document.createElement("TH");
+            const sortU = document.createElement("TD");
+            const sortI = document.createElement("TD");
+            const sortC = document.createElement("TD");
+            const sortP = document.createElement("TD");
+            const p_const = document.createElement("TD");
+            const sortTime = document.createElement("TD");
+
+            sortU   .textContent = `${item.u}`;
+            sortI   .textContent = `${item.i}`;
+            sortC   .textContent = `${item.Cconst}`;
+            sortP   .textContent = `${item.u * item.i}`;
+            p_const .textContent = `${item.e}`;
+            sortTime.textContent = `${(item.status === 2) ? (item.Cconst * item.i) : (item.workingHours || "-")}`;
+
+            this.table.appendChild(tbody);
+            tbody.appendChild(tr);
+            tr.appendChild(th);
+            tr.appendChild(sortU);
+            tr.appendChild(sortI);
+            tr.appendChild(sortC);
+            tr.appendChild(sortP);
+            tr.appendChild(p_const);
+            tr.appendChild(sortTime);
+        });
+
     }
 }
