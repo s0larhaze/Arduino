@@ -73,7 +73,6 @@ class App {
                         });
                         this.printObjects(this.data);
                     }
-                    continue;
                 }
             });
         });

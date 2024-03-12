@@ -38,10 +38,9 @@ data: [
 }
 
 Запрос
-{type: "getData", name: name: "Воронеж база2",}
+{type: "getData", name: "Воронеж база2",}
 Ответ
 {
-type: "getObjects"
 data: [
     {
         cop: 1, vol: 1, cur: 1, datetime: 1,
