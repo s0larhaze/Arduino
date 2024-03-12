@@ -11,23 +11,63 @@ const testObjs = [
 
 class App {
     constructor() {
-        this.currentObjectItem = null;
-        
+        this.objectItems = [];
+
         this.start();
     }
 
     start() {
         this.self = document.querySelector('body');
         // Открыть сокет
+        // this.startSocet();
 
-        // Запросить объекты
-
-        // Вывести объекты
+        // Вывести объекты (временно)
         this.printObjects(testObjs);
     }
 
-    cleareObjectItem() {
-        this.currentObjectItem = null;
+    startSocet() {
+        const ip = "arduino/site";
+        const port = "8080";
+        const path = `wss://${ip}:${port}`
+        this.socket = new WebSocket(path);
+
+        this.socket.onopen = function(e) {
+            // Запрашиваем объекты (в формате имя + статус)
+            socket.send(JSON.stringify({type: "getObjects"}));
+        };
+
+        this.socket.onmessage = function(event) {
+            switch (event.data.type) {
+                case "getObjects":
+                    this.objects = testObjs;
+                    // this.objects = event.data.objects;
+                    this.printObjects(this.objects);
+                    break;
+                case "alarm":
+                    // Обрабатываем пришедшую тревогу
+                    break;
+                case "testStart":
+                    // Сообщаем о начале проверки или об ошибке
+                    break;
+                case "testEnd":
+                    // Сообщаем о завершении проверки или об ошибке
+                    break;
+                default:
+                break;
+            }
+        };
+
+        this.socket.onclose = function(event) {
+            if (event.wasClean) {
+                alert(`[close] Соединение закрыто чисто, код=${event.code} причина=${event.reason}`);
+            } else {
+                alert('[close] Соединение прервано');
+            }
+        };
+
+        this.socket.onerror = function(error) {
+            alert(`[error]`);
+        };
     }
 
     printObjects(objs) {
@@ -49,7 +89,11 @@ class App {
             `;
             // При клике создаем окошко с данными об объекте поверх главного экрана
             objItem.addEventListener("click", (event) => {
-                this.currentObjectItem = new ObjectItem(obj.name, obj.status, this);
+                if (this.objectItems[obj.name]) {
+                    this.objectItems[obj.name].restart();
+                } else {
+                    this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this);
+                }
             });
             // Класс для пометки важных объектов
             objItem.classList.add((obj.status) ? ((obj.status === 2) ? "danger" : "check") : null);

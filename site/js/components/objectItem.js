@@ -155,8 +155,11 @@ export default class ObjectItem {
 
     finish() {
         this.self.remove();
-        // Возможно, лучше сохранять их в список в апп и при повторном выборе просто возвращать
-        this.parent.cleareObjectItem();
+    }
+
+    restart() {
+        this.parent.self.appendChild(this.self);
+        console.log(`restart object ${this.id}`, this.parent.objectItems);
     }
 
     startChecking() {
@@ -363,11 +366,11 @@ export default class ObjectItem {
         const p_const = document.createElement("TD");
         const sortTime = document.createElement("TD");
 
-        th.textContent = this.data[0].name;
-        sortU.textContent = "U";
-        sortI.textContent = "I";
-        sortC.textContent = "C";
-        sortP.textContent = "P";
+        th.textContent = this.id;
+        sortU.textContent = "U()";
+        sortI.textContent = "I()";
+        sortC.textContent = "C()";
+        sortP.textContent = "P()";
         p_const.textContent = "P-const";
         sortTime.textContent = "Расчетное время работы";
 
