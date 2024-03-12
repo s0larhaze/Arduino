@@ -2,7 +2,8 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const axios = require('axios');
-const serial = require('serialport')
+const serial = require('serialport');
+const cors = require('cors');
 const { ReadlineParser } = require('@serialport/parser-readline')
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +14,10 @@ const readline = require('node:readline').createInterface({
 });
 
 app.use(express.json());
+
+app.use(cors({
+  allowedHeaders: ['Content-Type']
+}))
 
 const port = new serial.SerialPort({ path: "/dev/ttyUSB0", baudRate: 9600 });
 const parser = new ReadlineParser();
@@ -109,20 +114,11 @@ app.post('/api/getData', (req, res) => {
         sqlcon.query("select * from measurements", (err, result) => {
           if (err) throw err;
 
-          result = result[0];
-
-          let obj = {
-            current: result.current,
-            voltage: result.voltage,
-            capacity: result.current * result.voltage * (result.time / 60),
-            datetime: result.date_time,
-          }
-
           console.log(result);
-          console.log(obj);
+          console.log(result);
           res.type("json");
           // res.send(result);
-          res.send(obj);
+          res.send(result);
         });
       });
     });
