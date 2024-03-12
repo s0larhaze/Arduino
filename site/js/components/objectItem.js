@@ -159,7 +159,6 @@ export default class ObjectItem {
 
     restart() {
         this.parent.self.appendChild(this.self);
-        console.log(`restart object ${this.id}`, this.parent.objectItems);
     }
 
     startChecking() {
@@ -368,7 +367,7 @@ export default class ObjectItem {
 
         th.textContent = this.id;
         sortU.textContent = "U()";
-        sortI.textContent = "I()";
+        sortI.textContent = "I(А)";
         sortC.textContent = "C()";
         sortP.textContent = "P()";
         p_const.textContent = "P-const";
