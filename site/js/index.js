@@ -7,12 +7,12 @@
 import ObjectItem from "./components/objectItem.js";
 
 const testObjs = [
-    {name: "Воронеж база1", status: 0},
-    {name: "Воронеж база2", status: 0},
-    {name: "Воронеж база3", status: 0},
-    {name: "Владимир база1", status: 1},
-    {name: "Владимир база2", status: 1},
-    {name: "Владимир база3", status: 2},
+    { name: "Воронеж база1", status: 0 },
+    { name: "Воронеж база2", status: 0 },
+    { name: "Воронеж база3", status: 0 },
+    { name: "Владимир база1", status: 1 },
+    { name: "Владимир база2", status: 1 },
+    { name: "Владимир база3", status: 2 },
 ]
 
 class App {
@@ -22,7 +22,7 @@ class App {
         this.start();
     }
 
-    start() {
+    async start() {
         this.self = document.querySelector('body');
         // Открыть сокет
         this.startSocet();
@@ -42,7 +42,7 @@ class App {
         };
 
         // Сюда вставь адрес
-        const url = "";
+        const url = "http://127.0.0.1:3000/api/getObjects";
         let response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -73,31 +73,36 @@ class App {
                         });
                         this.printObjects(this.data);
                     }
-                    continue;
                 }
             });
         });
 
+        asd
+
     }
 
     async startSocet() {
-        // Это первый из пунктов. Запрос объектов.
         let body = {
             type: 'getObjects',
         };
-        // Сюда вставь адрес
-        const url = "";
+
+        const url = "http://127.0.0.1:3000/api/getObjects";
         let response = await fetch(url, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json;charset=utf-8'
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify(body)
         });
 
-        let result = await response.json();
-        this.data = result.data;
-        this.printObjects(this.data);
+        if (response.ok) {
+            let data = await response.json();
+            console.log(data);
+            this.data = data;
+            this.printObjects(this.data);
+        } else {
+            console.error('Failed to fetch data:', response.status);
+        }
 
 
         // Под сокет, пока не пашет
@@ -147,7 +152,7 @@ class App {
 
     printObjects(objs) {
         // Сортируем вывод по принципу срочности
-        objs.sort(function (a, b) {return b.status - a.status;});
+        objs.sort(function(a, b) { return b.status - a.status; });
 
         // Сюда выводятся объекты
         const container = document.createElement("UL");

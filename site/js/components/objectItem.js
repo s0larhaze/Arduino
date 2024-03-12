@@ -197,7 +197,7 @@ export default class ObjectItem {
             let timeInSeconds = (new Date().getTime() - this.timer) / 1000;
 
             let hou = Math.floor(timeInSeconds / 3600);
-            let min = Math.floor(timeInSeconds % 3600 / 60 );
+            let min = Math.floor(timeInSeconds % 3600 / 60);
             let sec = Math.floor(timeInSeconds % 60);
 
             hou = (hou > 9) ? hou : "0" + hou;
@@ -224,7 +224,7 @@ export default class ObjectItem {
             set.add(date);
         });
         // Сортировка
-        set = Array.from(set).sort((a, b) => {return a - b});
+        set = Array.from(set).sort((a, b) => { return a - b });
 
         set.forEach((item, i) => {
             op = document.createElement("OPTION");
@@ -249,7 +249,7 @@ export default class ObjectItem {
             set.add(date);
         });
         // Сортировка
-        set = Array.from(set).sort((a, b) => {return a - b});
+        set = Array.from(set).sort((a, b) => { return a - b });
 
         set.forEach((item, i) => {
             op = document.createElement("OPTION");
@@ -274,7 +274,7 @@ export default class ObjectItem {
             set.add(date);
         });
         // Сортировка
-        set = Array.from(set).sort((a, b) => {return a - b});
+        set = Array.from(set).sort((a, b) => { return a - b });
 
         set.forEach((item, i) => {
             op = document.createElement("OPTION");
@@ -303,7 +303,7 @@ export default class ObjectItem {
             }
         });
         // Сортировка
-        set = Array.from(set).sort((a, b) => {return a - b});
+        set = Array.from(set).sort((a, b) => { return a - b });
 
         set.forEach((item, i) => {
             op = document.createElement("OPTION");
@@ -331,7 +331,7 @@ export default class ObjectItem {
             }
         });
         // Сортировка
-        set = Array.from(set).sort((a, b) => {return a - b});
+        set = Array.from(set).sort((a, b) => { return a - b });
 
         set.forEach((item, i) => {
             op = document.createElement("OPTION");
@@ -360,7 +360,7 @@ export default class ObjectItem {
             }
         });
         // Сортировка
-        set = Array.from(set).sort((a, b) => {return a - b});
+        set = Array.from(set).sort((a, b) => { return a - b });
 
         set.forEach((item, i) => {
             op = document.createElement("OPTION");
@@ -407,7 +407,7 @@ export default class ObjectItem {
         };
 
         // Сюда вставь адрес
-        const url = "";
+        const url = "http://127.0.0.1:3000/api/getData";
         let response = await fetch(url, {
             method: 'POST',
             headers: {
@@ -416,8 +416,10 @@ export default class ObjectItem {
             body: JSON.stringify(body)
         });
 
-        let result = await response.json();
-        this.data = result.data;
+        if (response.ok) {
+            let result = await response.json();
+            this.data = result;
+        }
 
         const tbody = document.createElement("TBODY");
         this.data.forEach((item, i) => {
@@ -430,16 +432,16 @@ export default class ObjectItem {
             const p_const = document.createElement("TD");
             const sortTime = document.createElement("TD");
 
-            const pattern = /(\d{4})-(\d{2})-(\d{2}), (\d{2}:\d{2}:\d{2})/;
-            let date = item.datetime.match(pattern)[3];
+            const pattern = /(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2}:\d{2}).000Z/;
+            let date = item.date_time.match(pattern)[3];
 
-            th      .textContent = `${date}`
-            sortU   .textContent = `${item.voltage}`;
-            sortI   .textContent = `${item.current}`;
-            sortC   .textContent = `${item.capacity}`;
-            sortP   .textContent = `${item.voltage * item.current}`;
-            p_const .textContent = `-`;
-            sortTime.textContent = `${item.capacity * item.current}`;
+            th.textContent = `${date}`
+            sortU.textContent = `${item.voltage}`;
+            sortI.textContent = `${item.current}`;
+            sortC.textContent = `${item.current * item.voltage * item.time / 60}`;
+            sortP.textContent = `${item.voltage * item.current}`;
+            p_const.textContent = `-`;
+            sortTime.textContent = `${item.current * item.voltage * item.time / 60 * item.current}`;
 
             this.table.appendChild(tbody);
             tbody.appendChild(tr);
