@@ -73,6 +73,31 @@ void loop() {
       measureBattery();
   } else if (cmd == "hello") {
       Serial.println("Hello");
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(100);
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(100);
+      digitalWrite(LED_BUILTIN, LOW);
+      Serial.println("elseif");
+      delay(100);
+  } else if (cmd == "bruh"){
+    while (true)
+    {
+      Serial.println("Wusap");
+      digitalWrite(LED_BUILTIN, LOW);
+      delay(50);
+      digitalWrite(LED_BUILTIN, HIGH);
+      delay(50);
+    }
   }
+
+  Serial.println("Hi");
+  delay(1000);
 }
 

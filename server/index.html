@@ -7,7 +7,57 @@
     <link href="css/style.css" rel="stylesheet">
   </head>
   <body>
-    <button type="">Measure</button>
+    <button type="" id="startCheckBtn">startCheck</button>
+    <button type="" id="getObjectsBtn">getObjects</button>
+    <button type="" id="getDataBtn">getData</button>
     <button type="">Stop</button>
+    <script>
+      const startCheckBtn = document.getElementById('startCheckBtn');
+      const getObjectsBtn = document.getElementById('getObjectsBtn');
+      const getDataBtn = document.getElementById('getDataBtn');
+
+      startCheckBtn.addEventListener('click', () => {
+        fetch("http://localhost:3000/api/startCheck", {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({"message": "startCheck"}),
+        }).then(data => {
+          console.log(data);
+        });
+      })
+
+      getObjectsBtn.addEventListener('click', () => {
+        fetch("http://localhost:3000/api/getObjects", {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({"message": "getObjects"}),
+        }).then(data => {
+          console.log(data);
+        });
+      })
+
+      getDataBtn.addEventListener('click', () => {
+        fetch("http://localhost:3000/api/getData", {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({"object_name": ""}),
+        }).then(data => {
+          console.log(data);
+        });
+      })
+
+    </script>
   </body>
 </html>
