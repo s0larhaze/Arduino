@@ -267,3 +267,16 @@ main {
     border-radius: var(--b-small);
     margin-right: var(--m-medium);
 }
+
+.alarmWindow {
+    width: 200px;
+    position: fixed;
+    top: 100px;
+    right: 100px;
+
+    padding: var(--p-medium);
+
+    background-color: var(--green);
+    color: #fff;
+    cursor: pointer;
+}

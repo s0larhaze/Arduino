@@ -1,3 +1,9 @@
+/*
+Запросы есть в файлах index.js, objectItem.js
+методы async startSocet, async startChecking, async changed,
+*/
+
+
 import ObjectItem from "./components/objectItem.js";
 
 const testObjs = [
@@ -19,55 +25,124 @@ class App {
     start() {
         this.self = document.querySelector('body');
         // Открыть сокет
-        // this.startSocet();
+        this.startSocet();
+        // проверка изменений
+        setInterval(() => {
+            this.changed();
+        }, 60000);
 
         // Вывести объекты (временно)
-        this.printObjects(testObjs);
+        // this.printObjects(testObjs);
     }
 
-    startSocet() {
-        const ip = "arduino/site";
-        const port = "8080";
-        const path = `wss://${ip}:${port}`
-        this.socket = new WebSocket(path);
-
-        this.socket.onopen = function(e) {
-            // Запрашиваем объекты (в формате имя + статус)
-            socket.send(JSON.stringify({type: "getObjects"}));
+    async changed() {
+        // Это третий из пунктов. Запрос на изменения в состоянии объектов
+        let body = {
+            type: 'changed',
         };
 
-        this.socket.onmessage = function(event) {
-            switch (event.data.type) {
-                case "getObjects":
-                    this.objects = testObjs;
-                    // this.objects = event.data.objects;
-                    this.printObjects(this.objects);
-                    break;
-                case "alarm":
-                    // Обрабатываем пришедшую тревогу
-                    break;
-                case "testStart":
-                    // Сообщаем о начале проверки или об ошибке
-                    break;
-                case "testEnd":
-                    // Сообщаем о завершении проверки или об ошибке
-                    break;
-                default:
-                break;
-            }
-        };
+        // Сюда вставь адрес
+        const url = "";
+        let response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify(body)
+        });
 
-        this.socket.onclose = function(event) {
-            if (event.wasClean) {
-                alert(`[close] Соединение закрыто чисто, код=${event.code} причина=${event.reason}`);
-            } else {
-                alert('[close] Соединение прервано');
-            }
-        };
+        let result = await response.json();
+        result.data.forEach((ritem, i) => {
+            this.data.forEach((titem, j) => {
+                // в тупую перебираем объекты нового и старого запросов и если имена совпадают - проверяем статус
+                if (ritem.name === titem.name) {
+                    if (ritem.status !== titem.status && ritem.status === 2) {
+                        // обновляем данные
+                        titem[j] = ritem[i];
+                        const div = document.createElement("DIV");
+                        div.classList.add("alarmWindow");
+                        div.textContent = `На объекте ${titem.name} произошла черезвычайная ситуация.\n Нажмите сюда, чтобе перейти к просмотру объекта`;
+                        // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
+                        div.addEventListener("click", () => {
+                            if (this.objectItems[titem.name]) {
+                                this.objectItems[titem.name].restart();
+                            } else {
+                                this.objectItems[titem.name] = new ObjectItem(titem.name, titem.status, this);
+                            }
+                            div.remove();
+                        });
+                        this.printObjects(this.data);
+                    }
+                    continue;
+                }
+            });
+        });
 
-        this.socket.onerror = function(error) {
-            alert(`[error]`);
+    }
+
+    async startSocet() {
+        // Это первый из пунктов. Запрос объектов.
+        let body = {
+            type: 'getObjects',
         };
+        // Сюда вставь адрес
+        const url = "";
+        let response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify(body)
+        });
+
+        let result = await response.json();
+        this.data = result.data;
+        this.printObjects(this.data);
+
+
+        // Под сокет, пока не пашет
+        // const ip = "arduino/site";
+        // const port = "8080";
+        // const path = `wss://${ip}:${port}`
+        // this.socket = new WebSocket(path);
+        //
+        // this.socket.onopen = function(e) {
+        //     // Запрашиваем объекты (в формате имя + статус)
+        //     socket.send(JSON.stringify({type: "getObjects"}));
+        // };
+        //
+        // this.socket.onmessage = function(event) {
+        //     switch (event.data.type) {
+        //         case "getObjects":
+        //             this.objects = testObjs;
+        //             // this.objects = event.data.objects;
+        //             this.printObjects(this.objects);
+        //             break;
+        //         case "alarm":
+        //             // Обрабатываем пришедшую тревогу
+        //             break;
+        //         case "testStart":
+        //             // Сообщаем о начале проверки или об ошибке
+        //             break;
+        //         case "testEnd":
+        //             // Сообщаем о завершении проверки или об ошибке
+        //             break;
+        //         default:
+        //         break;
+        //     }
+        // };
+        //
+        // this.socket.onclose = function(event) {
+        //     if (event.wasClean) {
+        //         alert(`[close] Соединение закрыто чисто, код=${event.code} причина=${event.reason}`);
+        //     } else {
+        //         alert('[close] Соединение прервано');
+        //     }
+        // };
+        //
+        // this.socket.onerror = function(error) {
+        //     alert(`[error]`);
+        // };
     }
 
     printObjects(objs) {

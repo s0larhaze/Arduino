@@ -56,7 +56,6 @@ export default class ObjectItem {
                 e: 14,
                 ob1: 14,
                 date: "2024-11-22, 23:50:21",
-                workingHours: "5:00",
             },
         ]
 
@@ -161,8 +160,25 @@ export default class ObjectItem {
         this.parent.self.appendChild(this.self);
     }
 
-    startChecking() {
+    async startChecking() {
         // Просим сервер запустить проверку.
+
+
+        // Это второй из пунктов. Запрос на проверку.
+        let body = {
+            type: 'startCheck',
+            name: this.id,
+        };
+        // Сюда вставь адрес
+        const url = "";
+        let response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify(body)
+        });
+
         // Запускаем таймер
         if (true) {
             this.startTimer();
@@ -366,11 +382,11 @@ export default class ObjectItem {
         const sortTime = document.createElement("TD");
 
         th.textContent = this.id;
-        sortU.textContent = "U()";
-        sortI.textContent = "I(А)";
-        sortC.textContent = "C()";
-        sortP.textContent = "P()";
-        p_const.textContent = "P-const";
+        sortU.textContent = "Напряжение U(В)";
+        sortI.textContent = "Сила тока I(A)";
+        sortC.textContent = "Емкость C(А/ч)";
+        sortP.textContent = "Мощность P(Вт)";
+        p_const.textContent = "Деградация %";
         sortTime.textContent = "Расчетное время работы";
 
         this.table.appendChild(thead);
@@ -384,7 +400,25 @@ export default class ObjectItem {
         tr.appendChild(sortTime);
     }
 
-    fillTableBody() {
+    async fillTableBody() {
+        let body = {
+            type: 'getData',
+            name: this.id,
+        };
+
+        // Сюда вставь адрес
+        const url = "";
+        let response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json;charset=utf-8'
+            },
+            body: JSON.stringify(body)
+        });
+
+        let result = await response.json();
+        this.data = result.data;
+
         const tbody = document.createElement("TBODY");
         this.data.forEach((item, i) => {
             const tr = document.createElement("TR");
@@ -396,12 +430,16 @@ export default class ObjectItem {
             const p_const = document.createElement("TD");
             const sortTime = document.createElement("TD");
 
-            sortU   .textContent = `${item.u}`;
-            sortI   .textContent = `${item.i}`;
-            sortC   .textContent = `${item.Cconst}`;
-            sortP   .textContent = `${item.u * item.i}`;
-            p_const .textContent = `${item.e}`;
-            sortTime.textContent = `${(item.status === 2) ? (item.Cconst * item.i) : (item.workingHours || "-")}`;
+            const pattern = /(\d{4})-(\d{2})-(\d{2}), (\d{2}:\d{2}:\d{2})/;
+            let date = item.datetime.match(pattern)[3];
+
+            th      .textContent = `${date}`
+            sortU   .textContent = `${item.voltage}`;
+            sortI   .textContent = `${item.current}`;
+            sortC   .textContent = `${item.capacity}`;
+            sortP   .textContent = `${item.voltage * item.current}`;
+            p_const .textContent = `-`;
+            sortTime.textContent = `${item.capacity * item.current}`;
 
             this.table.appendChild(tbody);
             tbody.appendChild(tr);
