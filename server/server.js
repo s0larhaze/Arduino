@@ -23,20 +23,14 @@ const port = new serial.SerialPort({ path: "/dev/ttyUSB0", baudRate: 9600 });
 const parser = new ReadlineParser();
 
 port.pipe(parser);
-<<<<<<< HEAD
 parser.on('data', console.log);
-=======
->>>>>>> backend
 
 app.get("/", (req, res) => {
   console.log(`User ${req.ip} has connected to the root.`);
 
   fs.readFile("./index.html", (err, data) => {
     if (err) throw err;
-<<<<<<< HEAD
-=======
 
->>>>>>> backend
   });
 
   res.sendFile(path.join(__dirname, 'index.html'));
@@ -99,8 +93,6 @@ app.post('/api/getData', (req, res) => {
   });
 });
 
-<<<<<<< HEAD
-=======
 app.post('/api/startCheck', (req, res) => {
   object_id = req.body.object_id;
   console.log(object_id);
@@ -153,5 +145,4 @@ app.post('/api/getMeasures', (req, res) => {
 
 });
 
->>>>>>> backend
 app.listen(3000);
