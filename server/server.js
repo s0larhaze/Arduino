@@ -1,17 +1,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
-const axios = require('axios');
 const serial = require('serialport');
 const cors = require('cors');
 const { ReadlineParser } = require('@serialport/parser-readline')
-const fs = require('fs');
 const path = require('path');
 const app = express();
-const readline = require('node:readline').createInterface({
-  input: process.stdin,
-  output: process.stdout
-});
 
 app.use(express.json());
 
@@ -28,11 +22,6 @@ parser.on('data', console.log);
 app.get("/", (req, res) => {
   console.log(`User ${req.ip} has connected to the root.`);
 
-  fs.readFile("./index.html", (err, data) => {
-    if (err) throw err;
-
-  });
-
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
@@ -42,55 +31,95 @@ const sqlcon = mysql.createConnection({
   password: "root",
 })
 
-sqlcon.connect((err) => {
-  if (err) throw err;
-  console.log("Connection established successfully!");
-});
-
-app.post('/api/getObjects', (req, res) => {
-  sqlcon.query("create database if not exists battery", (err, result) => {
-    if (err) throw err;
-
-    sqlcon.query("use battery", (err, result) => {
-      if (err) throw err;
-
-      sqlcon.query("create table if not exists objects (id int not null auto_increment primary key, name text, status tinyint)", (err, result) => {
-        if (err) throw err;
-
-        sqlcon.query("select * from objects", (err, result) => {
-          if (err) throw err;
-
-          console.log(result);
-          res.type("json");
-          res.send(result);
-        });
-      });
+SQLConnectQuery = () => {
+  return new Promise((resolve, reject) => {
+    sqlcon.connect((err, result) => {
+      if (err) reject(err);
+      resolve(result);
     });
   });
+};
+
+createDBQuery = () => {
+  return new Promise((resolve, reject) => {
+    sqlcon.query("create database if not exists battery", (err, result) => {
+      if (err) reject(err);
+      resolve(result);
+    });
+  });
+};
+
+useBatteryQuery = () => {
+  return new Promise((resolve, reject) => {
+    sqlcon.query("use battery", (err, result) => {
+      if (err) reject(err);
+      resolve(result);
+    });
+  });
+};
+
+createObjectsTableQuery = () => {
+  return new Promise((resolve, reject) => {
+    sqlcon.query(`create table if not exists objects 
+      (id int not null auto_increment primary key, name text, status tinyint)`, (err, result) => {
+      if (err) reject(err);
+      resolve(result);
+    });
+  });
+};
+
+SQLConnectQuery()
+  .then(createDBQuery)
+  .then(useBatteryQuery)
+  .then(createObjectsTableQuery)
+  .catch((err) => {
+    console.log(err);
+  });
+
+app.post('/api/getObjects', (req, res) => {
+  sqlcon.query("select * from objects", (err, result) => {
+    if (err) throw err;
+
+    console.log(result);
+    res.type("json");
+    res.send(result);
+  })
 });
 
 app.post('/api/getData', (req, res) => {
 
   console.log("Got getData query!");
-  sqlcon.query("create database if not exists battery", (err, result) => {
-    if (err) throw err;
 
-    sqlcon.query("use battery", (err, result) => {
-      if (err) throw err;
-
-      sqlcon.query('create table if not exists measurements (id int auto_increment primary key, object_id int, date_time datetime, current float, voltage float, time bigint)', (err, result, fields) => {
-        if (err) throw err;
-
-        sqlcon.query("select * from measurements", (err, result) => {
-          if (err) throw err;
-
-          console.log(result);
-          res.type("json");
-          res.send(result);
+  createMeasurementsTable = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`create table if not exists measurements 
+                    (id int auto_increment primary key, object_id int, date_time datetime, current float, voltage float, time bigint)`,
+        (err, result, fields) => {
+          if (err) reject(err);
+          resolve(result);
         });
+    })
+  }
+
+  selectAll = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query("select * from measurements", (err, result) => {
+        if (err) reject(err);
+        resolve(result);
       });
     });
-  });
+  }
+
+  createMeasurementsTable()
+    .then(selectAll)
+    .then((result) => {
+      console.log(result);
+      res.type("json");
+      res.send(result);
+    })
+    .catch((err) => {
+      console.log(err);
+    });
 });
 
 app.post('/api/startCheck', (req, res) => {
@@ -108,13 +137,11 @@ app.post('/api/startCheck', (req, res) => {
         const jsonData = JSON.parse(jsonString);
         console.log(jsonData);
 
-        sqlcon.query('use battery', (err) => {
+        sqlcon.query(`insert into measurements 
+          (object_id, date_time, current, voltage, time) 
+          values (${object_id}, ${'2011-03-11 00:00:00'}, ${jsonData.current}, ${jsonData.voltage}, ${jsonData.time})`, (err) => {
           if (err) throw err;
-
-          sqlcon.query(`insert into measurements (object_id, date_time, current, voltage, time) values (${object_id}, ${'2011-03-11 00:00:00'}, ${jsonData.current}, ${jsonData.voltage}, ${jsonData.time})`, (err) => {
-            if (err) throw err;
-          });
-        })
+        });
 
         res.type('json');
         res.send(jsonData);
@@ -132,17 +159,12 @@ app.post('/api/startCheck', (req, res) => {
 })
 
 app.post('/api/getMeasures', (req, res) => {
-  sqlcon.query('use battery', (err) => {
+  sqlcon.query(`select * from measurements`, (err, result) => {
     if (err) throw err;
 
-    sqlcon.query(`select * from measurements`, (err, result) => {
-      if (err) throw err;
-
-      res.type('json');
-      res.send(result);
-    });
-  })
-
+    res.type('json');
+    res.send(result);
+  });
 });
 
 app.listen(3000);
