@@ -52,6 +52,11 @@ void measureBattery(){
       jsdoc["temperature"] = temp_total / float(measured_times);
       jsdoc["time"] = time_spent;
       
+      var now = new Date();
+      var datetime = now.toISOString();
+
+      jsdoc["datetime"] = datetime;
+
       serializeJson(jsdoc, Serial);
       break;
     }
