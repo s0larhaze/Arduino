@@ -4,24 +4,21 @@
     <title></title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <link href="css/style.css" rel="stylesheet">
   </head>
   <body>
-    <button type="" id="startCheckBtn">startCheck</button>
+    <button type="" id="executePlannedMeasurementBtn">executePlannedMeasurement</button>
     <input type="" name="" value="" id="objectIdField">
-    <button type="" id="getObjectsBtn">getObjects</button>
-    <button type="" id="getDataBtn">getData</button>
-    <button type="" id="getMeasuresBtn">getMeasures</button>
+    <button type="" id="getListOfObjectsBtn">getListOfObjects</button>
+    <button type="" id="getObjectMeasurementDataBtn">getObjectMeasurementData</button>
     <button type="">Stop</button>
     <script>
-      const startCheckBtn = document.getElementById('startCheckBtn');
-      const getObjectsBtn = document.getElementById('getObjectsBtn');
-      const getDataBtn = document.getElementById('getDataBtn');
+      const executePlannedMeasurementBtn = document.getElementById('executePlannedMeasurementBtn');
+      const getListOfObjectsBtn = document.getElementById('getListOfObjectsBtn');
+      const getObjectMeasurementDataBtn = document.getElementById('getObjectMeasurementDataBtn');
       const objectIdField = document.getElementById('objectIdField');
-      const getMeasuresBtn = document.getElementById('getMeasuresBtn');
 
-      startCheckBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/startCheck", {
+      executePlannedMeasurementBtn.addEventListener('click', () => {
+        fetch("http://localhost:3000/api/executePlannedMeasurement", {
           method: "POST",
           mode: "cors",
           cache: "no-cache",
@@ -34,8 +31,8 @@
         });
       })
 
-      getObjectsBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/getObjects", {
+      getListOfObjectsBtn.addEventListener('click', () => {
+        fetch("http://localhost:3000/api/getListOfObjects", {
           method: "POST",
           mode: "cors",
           cache: "no-cache",
@@ -48,8 +45,8 @@
         });
       })
 
-      getDataBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/getData", {
+      getObjectMeasurementDataBtn.addEventListener('click', () => {
+        fetch("http://localhost:3000/api/getObjectMeasurementData", {
           method: "POST",
           mode: "cors",
           cache: "no-cache",
@@ -57,20 +54,6 @@
             "Content-Type": "application/json",
           },
           body: JSON.stringify({"object_name": ""}),
-        }).then(data => {
-          console.log(data);
-        });
-      })
-
-      getMeasuresBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/getMeasures", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"object_id": objectIdField.value}),
         }).then(data => {
           console.log(data);
         });

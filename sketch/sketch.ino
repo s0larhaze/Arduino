@@ -1,8 +1,11 @@
 #include <ArduinoJson.h>
 #define SECONDS 1000
 
+#define HIGH 0x0
+#define LOW 0x1
+
 const int VOLTAGE_IN = A0;
-const int CURRENT_IN = A2;
+const int CURRENT_IN = A0;
 const unsigned long MEASURE_DELAY = 5 * SECONDS;
 const unsigned long MEASURE_FOR = 10 * SECONDS;
 
@@ -51,11 +54,6 @@ void measureBattery(){
       jsdoc["current"] = current_total / float(measured_times);
       jsdoc["temperature"] = temp_total / float(measured_times);
       jsdoc["time"] = time_spent;
-      
-      var now = new Date();
-      var datetime = now.toISOString();
-
-      jsdoc["datetime"] = datetime;
 
       serializeJson(jsdoc, Serial);
       break;
