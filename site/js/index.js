@@ -25,14 +25,14 @@ class App {
     async start() {
         this.self = document.querySelector('body');
         // Открыть сокет
-        this.startSocet();
+        // this.startSocet();
         // проверка изменений
-        setInterval(() => {
-            this.changed();
-        }, 60000);
+        // setInterval(() => {
+            // this.changed();
+        // }, 60000);
 
         // Вывести объекты (временно)
-        // this.printObjects(testObjs);
+        this.printObjects(testObjs);
     }
 
     async changed() {
