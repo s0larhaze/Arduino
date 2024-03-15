@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const mysql = require('mysql');
 const serial = require('serialport');
 const cors = require('cors');
+const moment = require('moment');
 const { ReadlineParser } = require('@serialport/parser-readline')
 const path = require('path');
 const app = express();
@@ -13,10 +14,79 @@ app.use(cors({
 }))
 
 const port = new serial.SerialPort({ path: "/dev/ttyUSB0", baudRate: 9600 });
-const parser = new ReadlineParser();
+const parser = port.pipe(new ReadlineParser());
+parser.on('data', arduinoMessageHandler)
 
-port.pipe(parser);
-parser.on('data', console.log);
+function arduinoMessageHandler(message) {
+  measurementStartedDBOperation = (object_id) => {
+    sqlcon.query(`insert into measurements 
+      (start_timestamp, object_id) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id})`, (err) => {
+      if (err) throw err;
+    })
+  }
+
+  measurementFinishedDBOperation = (avg_current, avg_voltage, object_id) => {
+    sqlcon.query(`update measurements set 
+      avg_current = ${avg_current},
+      avg_voltage = ${avg_voltage},
+      end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}'
+      where object_id = ${object_id} and end_timestamp is NULL`, (err) => {
+      if (err) throw err;
+    })
+  }
+
+  emergencyHandlingDBOperation = (current, voltage, object_id) => {
+    sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values 
+      (${current},
+        ${voltage},
+        '${moment().format('YYYY-MM-DD HH:mm:ss')}',
+        ${object_id})`, (err) => {
+      if (err) throw err;
+    })
+  }
+
+  try {
+    jsonMessage = JSON.parse(message);
+
+    switch (jsonMessage.message_type) {
+      case messageTypes.MESSAGE_STARTED_MEASURING:
+        measurementStartedDBOperation(jsonMessage.object_id);
+        console.log("Measurement insert operation is done!");
+        break;
+      case messageTypes.MESSAGE_FINISHED_MEASURING:
+        measurementFinishedDBOperation(jsonMessage.avg_current,
+          jsonMessage.avg_voltage,
+          jsonMessage.object_id);
+        console.log("Measurement update operation is done!");
+        break;
+      case messageTypes.MESSAGE_EMERGENCY:
+        emergencyHandlingDBOperation(jsonMessage.current,
+          jsonMessage.voltage,
+          jsonMessage.object_id)
+        console.log("Emergency insert operation is done!");
+        break;
+    }
+
+    console.log(jsonMessage);
+  }
+  catch (err) {
+    console.log("Failed to parse json of " + message);
+  }
+}
+
+// ENUMS
+const objectStates = {
+  OBJECT_CHILL: 0,
+  OBJECT_MEASURING: 1,
+  OBJECT_EMERGENCY: 2,
+}
+
+const messageTypes = {
+  MESSAGE_STARTED_MEASURING: 0,
+  MESSAGE_FINISHED_MEASURING: 1,
+  MESSAGE_EMERGENCY: 2
+}
+// END ENUMS
 
 // DB SETUP
 const sqlcon = mysql.createConnection({
@@ -133,12 +203,20 @@ app.get("/", (req, res) => {
 });
 
 app.post('/api/getListOfObjects', (req, res) => {
-  sqlcon.query("select * from objects", (err, result) => {
+  sqlcon.query("select * from objects", (err, objects) => {
     if (err) throw err;
+    // res.type("json");
+    // res.send(result);
 
-    console.log(result);
-    res.type("json");
-    res.send(result);
+    objects.forEach(object => {
+      if (object.status == objectStates.OBJECT_MEASURING) {
+        sqlcon.query(`select start_timestamp from measurements 
+          where object_id = ${object.id} and end_timestamp = NULL`, (err, result) => {
+          object.timestamp = result.start_timestamp;
+          console.log(object);
+        })
+      }
+    });
   })
 });
 
@@ -167,45 +245,48 @@ app.post('/api/getObjectMeasurementData', (req, res) => {
 });
 
 app.post('/api/executePlannedMeasurement', (req, res) => {
-  object_id = req.body.object_id;
+  object_id = parseInt(req.body.object_id);
   console.log(object_id);
 
-  parser.on('data', (data) => {
-    let buffer = "";
-    buffer += data;
-    const start = buffer.indexOf('{');
-    const end = buffer.lastIndexOf('}');
-    if (start !== -1 && end !== -1 && start < end) {
-      const jsonString = buffer.substring(start, end + 1);
-      try {
-        const jsonData = JSON.parse(jsonString);
-        console.log(jsonData);
+  console.log(parser.listenerCount());
 
-        sqlcon.query(`insert into measurements 
-          (object_id, date_time, current, voltage, time) 
-          values (${object_id}, ${+new Date}, ${jsonData.current}, ${jsonData.voltage}, ${jsonData.time})`, (err) => {
-          if (err) throw err;
-        });
-
-        res.type('json');
-        res.send(jsonData);
-      } catch (error) {
-        console.error('Error parsing JSON:', error);
-        console.log('Raw JSON string:', jsonString);
-      }
-      buffer = buffer.substring(end + 1);
-    }
-  });
+  // parser.on('data', (data) => {
+  //   console.log("Got arduino's answer: " + data);
+  //
+  //   let buffer = "";
+  //   buffer += data;
+  //   const start = buffer.indexOf('{');
+  //   const end = buffer.lastIndexOf('}');
+  //   if (start !== -1 && end !== -1 && start < end) {
+  //     const jsonString = buffer.substring(start, end + 1);
+  //     try {
+  //       const jsonData = JSON.parse(jsonString);
+  //       console.log(jsonData);
+  //
+  //       res.type('json');
+  //       res.send(jsonData);
+  //     } catch (error) {
+  //       console.error('Error parsing JSON:', error);
+  //       console.log('Raw JSON string:', jsonString);
+  //     }
+  //     buffer = buffer.substring(end + 1);
+  //   }
+  // });
 
   port.write("measure", (err) => {
     if (err) throw err;
   });
 })
 
+app.post('/api/startMockEmergency', (req, res) => {
+  console.log(req.body);
+
+  port.write("emergency", (err) => {
+    if (err) throw err;
+  });
+})
+
 app.listen(3000);
-
-
-
 
 // Get objects: get all the data of objects from the db
 // Get object data: get all the measurement data of the object from the db

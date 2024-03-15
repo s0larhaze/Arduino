@@ -10,11 +10,13 @@
     <input type="" name="" value="" id="objectIdField">
     <button type="" id="getListOfObjectsBtn">getListOfObjects</button>
     <button type="" id="getObjectMeasurementDataBtn">getObjectMeasurementData</button>
+    <button type="" id="startMockEmergencyBtn">startMockEmergency</button>
     <button type="">Stop</button>
     <script>
       const executePlannedMeasurementBtn = document.getElementById('executePlannedMeasurementBtn');
       const getListOfObjectsBtn = document.getElementById('getListOfObjectsBtn');
       const getObjectMeasurementDataBtn = document.getElementById('getObjectMeasurementDataBtn');
+      const startMockEmergencyBtn = document.getElementById('startMockEmergencyBtn');
       const objectIdField = document.getElementById('objectIdField');
 
       executePlannedMeasurementBtn.addEventListener('click', () => {
@@ -54,6 +56,20 @@
             "Content-Type": "application/json",
           },
           body: JSON.stringify({"object_name": ""}),
+        }).then(data => {
+          console.log(data);
+        });
+      })
+
+      startMockEmergencyBtn.addEventListener('click', () => {
+        fetch("http://localhost:3000/api/startMockEmergency", {
+          method: "POST",
+          mode: "cors",
+          cache: "no-cache",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({"object_id": objectIdField.value}),
         }).then(data => {
           console.log(data);
         });
