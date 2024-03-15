@@ -1,24 +1,19 @@
-/*
-Запросы есть в файлах index.js, objectItem.js
-методы async startSocet, async startChecking, async changed,
-*/
-
-
 import ObjectItem from "./components/objectItem.js";
 
 const testObjs = [
-    { name: "Воронеж база1", status: 0 },
-    { name: "Воронеж база2", status: 0 },
-    { name: "Воронеж база3", status: 0 },
-    { name: "Владимир база1", status: 1 },
-    { name: "Владимир база2", status: 1 },
-    { name: "Владимир база3", status: 2 },
+    { name: "Воронеж база1", status: 0, },
+    { name: "Воронеж база2", status: 0, },
+    { name: "Воронеж база3", status: 0, },
+    { name: "Владимир база1", status: 1, timestamp: 1710501029745 },
+    { name: "Владимир база2", status: 1, timestamp: 1710501029745 },
+    { name: "Владимир база3", status: 2, timestamp: 1710501029745 },
+    { name: "Владимир база4", status: 2, timestamp: 1710509029745 },
 ]
 
 class App {
     constructor() {
         this.objectItems = [];
-
+        this.objects = testObjs;
         this.start();
     }
 
@@ -33,6 +28,7 @@ class App {
 
         // Вывести объекты (временно)
         this.printObjects(testObjs);
+        this.printAddObject();
     }
 
     async changed() {
@@ -150,23 +146,53 @@ class App {
         // };
     }
 
-    printObjects(objs) {
-        // Сортируем вывод по принципу срочности
-        objs.sort(function(a, b) { return b.status - a.status; });
-
+    printObjects() {
         // Сюда выводятся объекты
         const container = document.createElement("UL");
         container.classList.add("objectsContainer");
         this.self.appendChild(container);
 
-        // Сам вывод
-        objs.forEach(obj => {
-            const objItem = document.createElement("li");
-            objItem.classList.add("objectsItem");
-            objItem.innerHTML = `
-                <h2>${obj.name}</h2>
-                <p>${(obj.status) ? ((obj.status === 2) ? "Тревога" : "Проверка") : "Работает штатно"}</p>
-            `;
+        // Поиск по объектам
+        let search = document.createElement("H2");
+            search.classList.add("objects_search");
+            search.textContent = "Здесь будет поиск по объектам";
+            container.appendChild(search);
+
+        // Заголовок Тревог
+        let heading = document.createElement("H2");
+            heading.classList.add("objects_heading");
+            heading.textContent = "Тревоги"
+            container.appendChild(heading);
+
+        // Выводим объекты со статусом тревоги
+        this.objects.forEach((obj, i) => {
+            if (obj.status !== 2) return;
+            let objItem = document.createElement("li");
+                objItem.classList.add("objectsItem");
+
+            let objName = document.createElement("H2");
+                objName.textContent = obj.name;
+
+            let objStatus = document.createElement("P");
+                objStatus.textContent = "Тревога";
+
+            let timer = document.createElement("SPAN");
+                timer.textContent = "-:-:-";
+
+            objItem.appendChild(objName);
+            objItem.appendChild(objStatus);
+            objItem.appendChild(timer);
+
+            if (obj.timestamp) {
+                setInterval(() => {
+                    const date = new Date().getTime();
+                    let now = date - obj.timestamp;
+                    now = new Date(now);
+                    timer.textContent = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+                }, 1000);
+            }
+
+
             // При клике создаем окошко с данными об объекте поверх главного экрана
             objItem.addEventListener("click", (event) => {
                 if (this.objectItems[obj.name]) {
@@ -175,12 +201,111 @@ class App {
                     this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this);
                 }
             });
+
             // Класс для пометки важных объектов
             objItem.classList.add((obj.status) ? ((obj.status === 2) ? "danger" : "check") : null);
 
             // Закидываем в список
             container.appendChild(objItem);
         });
+
+        // Заголовок Проверок
+            heading = document.createElement("H2");
+            heading.classList.add("objects_heading");
+            heading.textContent = "Проверки"
+            container.appendChild(heading);
+
+        // Выводим объекты со статусом Проверки
+        this.objects.forEach((obj, i) => {
+            if (obj.status !== 1) return;
+            let objItem = document.createElement("li");
+                objItem.classList.add("objectsItem");
+
+            let objName = document.createElement("H2");
+                objName.textContent = obj.name;
+
+            let objStatus = document.createElement("P");
+                objStatus.textContent = "Проверка";
+
+            let timer = document.createElement("SPAN");
+                timer.textContent = "-:-:-";
+
+            objItem.appendChild(objName);
+            objItem.appendChild(objStatus);
+            objItem.appendChild(timer);
+
+            if (obj.timestamp) {
+                setInterval(() => {
+                    const date = new Date().getTime();
+                    let now = date - obj.timestamp;
+                    now = new Date(now);
+                    timer.textContent = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+                }, 1000);
+            }
+
+
+            // При клике создаем окошко с данными об объекте поверх главного экрана
+            objItem.addEventListener("click", (event) => {
+                if (this.objectItems[obj.name]) {
+                    this.objectItems[obj.name].restart();
+                } else {
+                    this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this);
+                }
+            });
+
+            // Класс для пометки важных объектов
+            objItem.classList.add((obj.status) ? ((obj.status === 2) ? "danger" : "check") : null);
+
+            // Закидываем в список
+            container.appendChild(objItem);
+        });
+
+        // Заголовок штатной работы
+        heading = document.createElement("H2");
+        heading.classList.add("objects_heading");
+        heading.textContent = "Штатная работа"
+        container.appendChild(heading);
+
+        // Выводим объекты со статусом Проверки
+        this.objects.forEach((obj, i) => {
+            if (obj.status !== 0) return;
+            let objItem = document.createElement("li");
+                objItem.classList.add("objectsItem");
+
+            let objName = document.createElement("H2");
+                objName.textContent = obj.name;
+
+            let objStatus = document.createElement("P");
+                objStatus.textContent = "Работает штатно";
+
+            let timer = document.createElement("SPAN");
+                timer.textContent = "-:-:-";
+
+            objItem.appendChild(objName);
+            objItem.appendChild(objStatus);
+            objItem.appendChild(timer);
+
+            // При клике создаем окошко с данными об объекте поверх главного экрана
+            objItem.addEventListener("click", (event) => {
+                if (this.objectItems[obj.name]) {
+                    this.objectItems[obj.name].restart();
+                } else {
+                    this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this);
+                }
+            });
+
+            // Закидываем в список
+            container.appendChild(objItem);
+        });
+
+
+    }
+
+    printAddObject() {
+        this.addObject = document.createElement("DIV");
+        this.addObject.textContent = "Тут будет панель добавления объекта";
+        this.addObject.classList.add("addObject");
+        this.self.appendChild(this.addObject);
     }
 }
 

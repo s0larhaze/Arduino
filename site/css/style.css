@@ -1,3 +1,8 @@
+@font-face {
+  font-family: Roboto;
+  src: url(./fonts/Roboto-Regular.ttf);
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -10,7 +15,7 @@
 
     transition: .2s;
     box-sizing: border-box;
-    font-family: sans-serif;
+    font-family: Roboto, sans-serif;
 
     user-select: none;
 }
@@ -48,7 +53,9 @@ textarea {
 
 :root {
     --green: #0a9508;
-    --red: #ff0000;
+    --green-lite: #0a950899;
+    --red: #ff1700;
+    --grey: #f9f9f9;
 
     --p-small: 15px;
     --p-medium: 20px;
@@ -215,32 +222,53 @@ main {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-direction: column;
+    flex-wrap: wrap;
     width: 100%;
+    min-width: 300px;
+    max-width: 90vw;
 
     padding: 50px;
+    margin: 50px auto;
+    border-radius: var(--b-medium);
+
+    background-color: var(--grey);
 }
 
 .objectsItem {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    width: 100%;
+    width: 45%;
+    min-width: 300px;
 
     padding: var(--p-medium);
     border-radius: var(--b-small);
-    margin: 20px auto;
+    margin: 20px 0;
 
-    background-color: #fefefe;
+    background-color: var(--green-lite);
+
+    color: #fff;
 
     box-shadow: 0 0 10px 0 #000;
     cursor: pointer;
     transition: .3s;
 }
 
+.objectsItem > h2 {
+    margin-right: auto;
+    font-weight: 400;
+}
+
+.objectsItem > span {
+    margin-left: var(--m-medium);
+}
+
 .objectsItem:hover {
     transform: translateY(-5px);
+}
 
+.objects_heading {
+    width: 100%;
 }
 
 /* Alert Window */
@@ -279,4 +307,22 @@ main {
     background-color: var(--green);
     color: #fff;
     cursor: pointer;
+}
+
+/* Add Object */
+
+.addObject {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    width: 100%;
+    min-width: 300px;
+    max-width: 90vw;
+
+    padding: 50px;
+    margin: 50px auto;
+    border-radius: var(--b-medium);
+
+    background-color: var(--grey);
 }
