@@ -6,12 +6,74 @@ const cors = require('cors');
 const moment = require('moment');
 const { ReadlineParser } = require('@serialport/parser-readline')
 const path = require('path');
+const { createServer } = require('node:http');
+const { Server } = require('socket.io');
+
 const app = express();
+const server = createServer(app);
+const io = new Server(server);
 
 app.use(express.json());
+app.use("/socket", express.static('socket'))
 app.use(cors({
   allowedHeaders: ['Content-Type']
 }))
+
+io.on('connection', (socket) => {
+  console.log("Connection! " + socket.id);
+
+  socket.on('executePlannedMeasurementRequest', message => {
+    port.write("measure", (err) => {
+      if (err) throw err;
+    });
+  })
+
+  // TODO: Rewrite to support emergency status and emit only one object per timestamp.
+  socket.on('getListOfObjectsRequest', message => {
+    sqlcon.query(`SELECT
+      obj.id, 
+      name, 
+      status, 
+      start_timestamp AS timestamp
+      FROM objects AS obj LEFT JOIN measurements AS m ON
+      obj.id = m.object_id 
+      ORDER BY timestamp DESC`, (err, result) => {
+      if (err) throw err;
+      socket.emit('getListOfObjectsResponse', result);
+    })
+  })
+
+  socket.on('getObjectMeasurementDataRequest', message => {
+    jsonMessage = JSON.parse(message);
+    console.log("Got getData query!", jsonMessage);
+
+    selectAll = () => {
+      return new Promise((resolve, reject) => {
+        sqlcon.query(`select * from measurements where object_id = ${jsonMessage.object_id}`, (err, result) => {
+          if (err) reject(err);
+          resolve(result);
+        });
+      });
+    }
+
+    selectAll()
+      .then((result) => {
+        console.log(result);
+        socket.emit('getObjectMeasurementDataResponse', result);
+      })
+      .catch((err) => {
+        console.log("Got getData query!", message);
+      });
+  })
+
+  socket.on('startMockEmergencyRequest', message => {
+    console.log(message);
+
+    port.write("emergency", (err) => {
+      if (err) throw err;
+    });
+  })
+})
 
 const port = new serial.SerialPort({ path: "/dev/ttyUSB0", baudRate: 9600 });
 const parser = port.pipe(new ReadlineParser());
@@ -202,91 +264,93 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.post('/api/getListOfObjects', (req, res) => {
-  sqlcon.query("select * from objects", (err, objects) => {
-    if (err) throw err;
-    // res.type("json");
-    // res.send(result);
+// app.post('/api/getListOfObjects', (req, res) => {
+//   sqlcon.query("select * from objects", (err, objects) => {
+//     if (err) throw err;
+//     // res.type("json");
+//     // res.send(result);
+//
+//     objects.forEach(object => {
+//       if (object.status == objectStates.OBJECT_MEASURING) {
+//         sqlcon.query(`select start_timestamp from measurements 
+//           where object_id = ${object.id} and end_timestamp = NULL`, (err, result) => {
+//           object.timestamp = result.start_timestamp;
+//           console.log(object);
+//         })
+//       }
+//     });
+//   })
+// });
+//
+// app.post('/api/getObjectMeasurementData', (req, res) => {
+//
+//   console.log("Got getData query!");
+//
+//   selectAll = () => {
+//     return new Promise((resolve, reject) => {
+//       sqlcon.query("select * from measurements", (err, result) => {
+//         if (err) reject(err);
+//         resolve(result);
+//       });
+//     });
+//   }
+//
+//   selectAll()
+//     .then((result) => {
+//       console.log(result);
+//       res.type("json");
+//       res.send(result);
+//     })
+//     .catch((err) => {
+//       console.log(err);
+//     });
+// });
+//
+// app.post('/api/executePlannedMeasurement', (req, res) => {
+//   object_id = parseInt(req.body.object_id);
+//   console.log(object_id);
+//
+//   console.log(parser.listenerCount());
+//
+//   // parser.on('data', (data) => {
+//   //   console.log("Got arduino's answer: " + data);
+//   //
+//   //   let buffer = "";
+//   //   buffer += data;
+//   //   const start = buffer.indexOf('{');
+//   //   const end = buffer.lastIndexOf('}');
+//   //   if (start !== -1 && end !== -1 && start < end) {
+//   //     const jsonString = buffer.substring(start, end + 1);
+//   //     try {
+//   //       const jsonData = JSON.parse(jsonString);
+//   //       console.log(jsonData);
+//   //
+//   //       res.type('json');
+//   //       res.send(jsonData);
+//   //     } catch (error) {
+//   //       console.error('Error parsing JSON:', error);
+//   //       console.log('Raw JSON string:', jsonString);
+//   //     }
+//   //     buffer = buffer.substring(end + 1);
+//   //   }
+//   // });
+//
+//   port.write("measure", (err) => {
+//     if (err) throw err;
+//   });
+// })
+//
+// app.post('/api/startMockEmergency', (req, res) => {
+//   console.log(req.body);
+//
+//   port.write("emergency", (err) => {
+//     if (err) throw err;
+//   });
+// })
 
-    objects.forEach(object => {
-      if (object.status == objectStates.OBJECT_MEASURING) {
-        sqlcon.query(`select start_timestamp from measurements 
-          where object_id = ${object.id} and end_timestamp = NULL`, (err, result) => {
-          object.timestamp = result.start_timestamp;
-          console.log(object);
-        })
-      }
-    });
-  })
+server.listen(3000, () => {
+  console.log("Ran server on http://localhost:3000");
 });
-
-app.post('/api/getObjectMeasurementData', (req, res) => {
-
-  console.log("Got getData query!");
-
-  selectAll = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query("select * from measurements", (err, result) => {
-        if (err) reject(err);
-        resolve(result);
-      });
-    });
-  }
-
-  selectAll()
-    .then((result) => {
-      console.log(result);
-      res.type("json");
-      res.send(result);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-});
-
-app.post('/api/executePlannedMeasurement', (req, res) => {
-  object_id = parseInt(req.body.object_id);
-  console.log(object_id);
-
-  console.log(parser.listenerCount());
-
-  // parser.on('data', (data) => {
-  //   console.log("Got arduino's answer: " + data);
-  //
-  //   let buffer = "";
-  //   buffer += data;
-  //   const start = buffer.indexOf('{');
-  //   const end = buffer.lastIndexOf('}');
-  //   if (start !== -1 && end !== -1 && start < end) {
-  //     const jsonString = buffer.substring(start, end + 1);
-  //     try {
-  //       const jsonData = JSON.parse(jsonString);
-  //       console.log(jsonData);
-  //
-  //       res.type('json');
-  //       res.send(jsonData);
-  //     } catch (error) {
-  //       console.error('Error parsing JSON:', error);
-  //       console.log('Raw JSON string:', jsonString);
-  //     }
-  //     buffer = buffer.substring(end + 1);
-  //   }
-  // });
-
-  port.write("measure", (err) => {
-    if (err) throw err;
-  });
-})
-
-app.post('/api/startMockEmergency', (req, res) => {
-  console.log(req.body);
-
-  port.write("emergency", (err) => {
-    if (err) throw err;
-  });
-})
-
-app.listen(3000);
 
 // Get objects: get all the data of objects from the db
 // Get object data: get all the measurement data of the object from the db

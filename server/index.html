@@ -12,67 +12,87 @@
     <button type="" id="getObjectMeasurementDataBtn">getObjectMeasurementData</button>
     <button type="" id="startMockEmergencyBtn">startMockEmergency</button>
     <button type="">Stop</button>
+    <script src="/socket/socket.io.js"></script>
     <script>
       const executePlannedMeasurementBtn = document.getElementById('executePlannedMeasurementBtn');
       const getListOfObjectsBtn = document.getElementById('getListOfObjectsBtn');
       const getObjectMeasurementDataBtn = document.getElementById('getObjectMeasurementDataBtn');
       const startMockEmergencyBtn = document.getElementById('startMockEmergencyBtn');
       const objectIdField = document.getElementById('objectIdField');
+      const socket = io();
 
       executePlannedMeasurementBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/executePlannedMeasurement", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"object_id": objectIdField.value}),
-        }).then(data => {
-          console.log(data);
-        });
+        socket.emit('executePlannedMeasurementRequest', `{ object_id: ${objectIdField.value} }`);
+
+        <!-- fetch("http://localhost:3000/api/executePlannedMeasurement", { -->
+        <!--   method: "POST", -->
+        <!--   mode: "cors", -->
+        <!--   cache: "no-cache", -->
+        <!--   headers: { -->
+        <!--     "Content-Type": "application/json", -->
+        <!--   }, -->
+        <!--   body: JSON.stringify({"object_id": objectIdField.value}), -->
+        <!-- }).then(data => { -->
+        <!--   console.log(data); -->
+        <!-- }); -->
       })
 
       getListOfObjectsBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/getListOfObjects", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"message": "getObjects"}),
-        }).then(data => {
-          console.log(data);
-        });
+        socket.emit('getListOfObjectsRequest', `All`);
+
+        socket.once('getListOfObjectsResponse', (msg) => {
+          console.log("Got an answer: " + msg);
+          console.log(msg);
+        })
+
+        <!-- fetch("http://localhost:3000/api/getListOfObjects", { -->
+        <!--   method: "POST", -->
+        <!--   mode: "cors", -->
+        <!--   cache: "no-cache", -->
+        <!--   headers: { -->
+        <!--     "Content-Type": "application/json", -->
+        <!--   }, -->
+        <!--   body: JSON.stringify({"message": "getObjects"}), -->
+        <!-- }).then(data => { -->
+        <!--   console.log(data); -->
+        <!-- }); -->
       })
 
       getObjectMeasurementDataBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/getObjectMeasurementData", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"object_name": ""}),
-        }).then(data => {
-          console.log(data);
-        });
+        socket.emit('getObjectMeasurementDataRequest', `{ "object_id": ${objectIdField.value} }` );
+
+        socket.once('getObjectMeasurementDataResponse', (msg) => {
+          console.log("Measurement data: " + msg);
+          console.log(msg);
+        })
+
+        <!-- fetch("http://localhost:3000/api/getObjectMeasurementData", { -->
+        <!--   method: "POST", -->
+        <!--   mode: "cors", -->
+        <!--   cache: "no-cache", -->
+        <!--   headers: { -->
+        <!--     "Content-Type": "application/json", -->
+        <!--   }, -->
+        <!--   body: JSON.stringify({"object_name": ""}), -->
+        <!-- }).then(data => { -->
+        <!--   console.log(data); -->
+        <!-- }); -->
       })
 
       startMockEmergencyBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/startMockEmergency", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"object_id": objectIdField.value}),
-        }).then(data => {
-          console.log(data);
-        });
+        socket.emit('startMockEmergencyRequest', `{ object_id: ${objectIdField.value} }`);
+
+        <!-- fetch("http://localhost:3000/api/startMockEmergency", { -->
+        <!--   method: "POST", -->
+        <!--   mode: "cors", -->
+        <!--   cache: "no-cache", -->
+        <!--   headers: { -->
+        <!--     "Content-Type": "application/json", -->
+        <!--   }, -->
+        <!--   body: JSON.stringify({"object_id": objectIdField.value}), -->
+        <!-- }).then(data => { -->
+        <!--   console.log(data); -->
+        <!-- }); -->
       })
 
     </script>
