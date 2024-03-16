@@ -11,7 +11,13 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    allowedHeaders: ["Content-Type"],
+    credentials: true
+  }
+});
 
 app.use(express.json());
 app.use("/socket", express.static('socket'))
