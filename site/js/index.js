@@ -1,14 +1,17 @@
 import ObjectItem from "./components/objectItem.js";
+import { io } from "socket.io-client";
+import "../css/style.css";
 
 const testObjs = [
     { name: "Воронеж база1", status: 0, },
     { name: "Воронеж база2", status: 0, },
     { name: "Воронеж база3", status: 0, },
-    { name: "Владимир база1", status: 1, timestamp: 1710501029745 },
-    { name: "Владимир база2", status: 1, timestamp: 1710501029745 },
-    { name: "Владимир база3", status: 2, timestamp: 1710501029745 },
-    { name: "Владимир база4", status: 2, timestamp: 1710509029745 },
-]
+    { name: "Владимир база1", status: 1, timestamp: 1710584772064 },
+    { name: "Владимир база2", status: 1, timestamp: 1710574710615 },
+    { name: "Владимир база3", status: 2, timestamp: 1710564710615 },
+    { name: "Владимир база4", status: 2, timestamp: 1710559029745 },
+];
+
 
 class App {
     constructor() {
@@ -25,7 +28,17 @@ class App {
         // setInterval(() => {
             // this.changed();
         // }, 60000);
-
+        const socket = io('http://localhost');
+        socket.on('getListOfObjectsRequest', (message) => {
+            console.log(message);
+        });
+        socket.on('message', (message) => {
+            console.log(message);
+        });
+        setInterval(() => {
+            console.log("getListOfObjectsRequest sended");
+            socket.emit('getListOfObjectsRequest');
+        }, 1000);
         // Вывести объекты (временно)
         this.printObjects(testObjs);
         this.printAddObject();
@@ -146,6 +159,15 @@ class App {
         // };
     }
 
+    getTimeString(start, end) {
+        const time = (end - start) / 1000;
+        let hours   = (Math.floor(time / 3600) > 9) ? Math.floor(time / 3600) : `0${Math.floor(time / 3600)}`;
+        let minutes = (Math.floor((time % 3600) / 60) > 9) ? Math.floor((time % 3600) / 60) : `0${Math.floor((time % 3600) / 60)}`;
+        let seconds = (Math.floor(time % 60) > 9) ? Math.floor(time % 60) : `0${Math.floor(time % 60)}`;
+
+        return `${hours}:${minutes}:${seconds}`;
+    }
+
     printObjects() {
         // Сюда выводятся объекты
         const container = document.createElement("UL");
@@ -186,9 +208,8 @@ class App {
             if (obj.timestamp) {
                 setInterval(() => {
                     const date = new Date().getTime();
-                    let now = date - obj.timestamp;
-                    now = new Date(now);
-                    timer.textContent = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+
+                    timer.textContent = this.getTimeString(obj.timestamp, date);
                 }, 1000);
             }
 
@@ -237,9 +258,8 @@ class App {
             if (obj.timestamp) {
                 setInterval(() => {
                     const date = new Date().getTime();
-                    let now = date - obj.timestamp;
-                    now = new Date(now);
-                    timer.textContent = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+
+                    timer.textContent = this.getTimeString(obj.timestamp, date);
                 }, 1000);
             }
 
