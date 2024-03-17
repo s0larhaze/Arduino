@@ -40,6 +40,10 @@ ul {
 body {
     min-width: 100vw;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
 
     overflow: auto;
     overflow-x: hidden;
@@ -79,6 +83,10 @@ textarea {
 .danger {
     background-color: var(--red) !important;
     color: #fff !important;
+}
+
+.hidden {
+    display: none !important;
 }
 /* Header */
 
@@ -226,12 +234,17 @@ main {
     width: 100%;
     min-width: 300px;
     max-width: 90vw;
+    order: 0;
 
     padding: 50px;
     margin: 50px auto;
     border-radius: var(--b-medium);
 
     background-color: var(--grey);
+}
+
+.addObject {
+    order: 1;
 }
 
 .objectsItem {
@@ -271,6 +284,13 @@ main {
     width: 100%;
 }
 
+.objects_search {
+    width: 100%;
+
+    padding: var(--p-medium);
+    margin-bottom: var(--m-medium);
+}
+
 /* Alert Window */
 
 .alertWindow {
@@ -297,18 +317,36 @@ main {
 }
 
 .alarmWindow {
-    width: 200px;
+    width: auto;
+    max-width: 300px;
     position: fixed;
-    top: 100px;
-    right: 100px;
+    top: 50px;
+    right: 50px;
 
     padding: var(--p-medium);
+    border-radius: var(--b-medium);
 
     background-color: var(--green);
     color: #fff;
     cursor: pointer;
+    z-index: 3;
 }
 
+.alarmWindow_closeButton {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    border-radius: var(--b-circle);
+    font-size: 30px;
+
+    background-color: #00000000;
+}
 /* Add Object */
 
 .addObject {

@@ -1,3 +1,15 @@
+/*
+// Штатно
+[
+ {name: '', data: "" ..., status: 1/2}
+ {name: '', data: "" ..., status: 1/2}
+ {name: '', data: "" ..., status: 1/2}
+ {name: '', data: "" ..., status: 1/2}
+ {name: '', data: "" ..., status: 1/2}
+]
+
+*/
+
 export default class ObjectItem {
     constructor(name, status, parent) {
         this.id = name;

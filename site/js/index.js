@@ -22,72 +22,90 @@ class App {
 
     async start() {
         this.self = document.querySelector('body');
+        let testCount = 0;
+        setInterval(() => {
+            console.log(`Test ${testCount++} start`);
+            let testObj = [];
+            this.objects.forEach((item, i) => {
+                testObj[i] = {...this.objects[i], status: Math.floor(Math.random() * 3)};
+            });
+
+            this.handleObjectsChanges(testObj);
+
+        }, 10000);
+
+
+
         // Открыть сокет
         // this.startSocet();
         // проверка изменений
         // setInterval(() => {
             // this.changed();
         // }, 60000);
-        const socket = io('http://localhost');
-        socket.on('getListOfObjectsRequest', (message) => {
-            console.log(message);
-        });
-        socket.on('message', (message) => {
-            console.log(message);
-        });
-        setInterval(() => {
-            console.log("getListOfObjectsRequest sended");
-            socket.emit('getListOfObjectsRequest');
-        }, 1000);
+        // const socket = io('http://147.45.101.134:3000', {transports: ['websocket']} );
+        // socket.on('getListOfObjectsRequest', (message) => {
+        //     console.log(message);
+        // });
+        // socket.on('getListOfObjectsResponse', (message) => {
+        //     console.log(message);
+        // });
+        // setInterval(() => {
+        //     console.log("getListOfObjectsRequest sended");
+        //     socket.emit('getListOfObjectsRequest');
+        // }, 1000);
         // Вывести объекты (временно)
+
+
+
         this.printObjects(testObjs);
         this.printAddObject();
     }
 
-    async changed() {
-        // Это третий из пунктов. Запрос на изменения в состоянии объектов
-        let body = {
-            type: 'changed',
-        };
+    handleObjectsChanges(newObjects) {
 
-        // Сюда вставь адрес
-        const url = "http://127.0.0.1:3000/api/getObjects";
-        let response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json;charset=utf-8'
-            },
-            body: JSON.stringify(body)
-        });
+        // Сравниваем новые и старые объекты
+        newObjects.forEach(newObj => {
+            this.objects.forEach((oldObj, i) => {
+                if (newObj.name === oldObj.name) {
+                    // Если без изменений
+                    if (newObj.status === oldObj.status) return ;
 
-        let result = await response.json();
-        result.data.forEach((ritem, i) => {
-            this.data.forEach((titem, j) => {
-                // в тупую перебираем объекты нового и старого запросов и если имена совпадают - проверяем статус
-                if (ritem.name === titem.name) {
-                    if (ritem.status !== titem.status && ritem.status === 2) {
-                        // обновляем данные
-                        titem[j] = ritem[i];
-                        const div = document.createElement("DIV");
+                    console.log("test");
+                    // Обновляем объект
+                    this.objects[i] = newObj;
+                    // Создаем окно оповещений
+                    let div = document.createElement("DIV");
                         div.classList.add("alarmWindow");
-                        div.textContent = `На объекте ${titem.name} произошла черезвычайная ситуация.\n Нажмите сюда, чтобе перейти к просмотру объекта`;
-                        // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
-                        div.addEventListener("click", () => {
-                            if (this.objectItems[titem.name]) {
-                                this.objectItems[titem.name].restart();
-                            } else {
-                                this.objectItems[titem.name] = new ObjectItem(titem.name, titem.status, this);
-                            }
+                    // Тревога
+                    (newObj.status == 2)
+                    ? div.innerHTML = `На объекте ${newObj.name} произошла черезвычайная ситуация. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`
+                    : div.innerHTML = `На объекте ${newObj.name} началась проверка. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
+
+                    // Кнопка закрытия
+                    let closeButton = document.createElement("BUTTON");
+                        closeButton.innerHTML = '&#11198;';
+                        closeButton.classList.add("alarmWindow_closeButton");
+                        closeButton.addEventListener('click', () => {
                             div.remove();
                         });
-                        this.printObjects(this.data);
-                    }
+                        div.appendChild(closeButton);
+
+                    // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
+                    div.addEventListener("click", (event) => {
+                        if (event.target !== div) return ;
+                        if (this.objectItems[newObj.name]) {
+                            this.objectItems[newObj.name].restart();
+                        } else {
+                            this.objectItems[newObj.name] = new ObjectItem(newObj.name, newObj.status, this);
+                        }
+                        div.remove();
+                    });
+                    this.self.appendChild(div);
                 }
             });
         });
 
-        asd
-
+        this.printObjects(this.objects);
     }
 
     async startSocet() {
@@ -170,27 +188,42 @@ class App {
 
     printObjects() {
         // Сюда выводятся объекты
-        const container = document.createElement("UL");
-        container.classList.add("objectsContainer");
-        this.self.appendChild(container);
+        if (this.container) this.container.remove();
+
+        this.container = document.createElement("UL");
+        this.container.classList.add("objectsContainer");
+        this.self.appendChild(this.container);
 
         // Поиск по объектам
-        let search = document.createElement("H2");
+        let search = document.createElement("INPUT");
             search.classList.add("objects_search");
-            search.textContent = "Здесь будет поиск по объектам";
-            container.appendChild(search);
+            search.type = "text";
+            search.name = "search";
+            search.placeholder = "Название объекта";
+            search.addEventListener("input", () => {
+                this.container.querySelectorAll("li").forEach((item, i) => {
+                    if (item.id.indexOf(search.value) === -1) {
+                        item.classList.add("hidden");
+                    } else {
+                        item.classList.remove("hidden");
+                    }
+                });
+
+            });
+            this.container.appendChild(search);
 
         // Заголовок Тревог
         let heading = document.createElement("H2");
             heading.classList.add("objects_heading");
             heading.textContent = "Тревоги"
-            container.appendChild(heading);
+            this.container.appendChild(heading);
 
         // Выводим объекты со статусом тревоги
         this.objects.forEach((obj, i) => {
             if (obj.status !== 2) return;
             let objItem = document.createElement("li");
                 objItem.classList.add("objectsItem");
+                objItem.id = obj.name;
 
             let objName = document.createElement("H2");
                 objName.textContent = obj.name;
@@ -227,20 +260,22 @@ class App {
             objItem.classList.add((obj.status) ? ((obj.status === 2) ? "danger" : "check") : null);
 
             // Закидываем в список
-            container.appendChild(objItem);
+            this.container.appendChild(objItem);
         });
 
         // Заголовок Проверок
             heading = document.createElement("H2");
             heading.classList.add("objects_heading");
             heading.textContent = "Проверки"
-            container.appendChild(heading);
+            this.container.appendChild(heading);
 
         // Выводим объекты со статусом Проверки
         this.objects.forEach((obj, i) => {
             if (obj.status !== 1) return;
             let objItem = document.createElement("li");
                 objItem.classList.add("objectsItem");
+                objItem.id = obj.name;
+
 
             let objName = document.createElement("H2");
                 objName.textContent = obj.name;
@@ -277,20 +312,22 @@ class App {
             objItem.classList.add((obj.status) ? ((obj.status === 2) ? "danger" : "check") : null);
 
             // Закидываем в список
-            container.appendChild(objItem);
+            this.container.appendChild(objItem);
         });
 
         // Заголовок штатной работы
         heading = document.createElement("H2");
         heading.classList.add("objects_heading");
         heading.textContent = "Штатная работа"
-        container.appendChild(heading);
+        this.container.appendChild(heading);
 
         // Выводим объекты со статусом Проверки
         this.objects.forEach((obj, i) => {
             if (obj.status !== 0) return;
             let objItem = document.createElement("li");
                 objItem.classList.add("objectsItem");
+                objItem.id = obj.name;
+
 
             let objName = document.createElement("H2");
                 objName.textContent = obj.name;
@@ -315,7 +352,7 @@ class App {
             });
 
             // Закидываем в список
-            container.appendChild(objItem);
+            this.container.appendChild(objItem);
         });
 
 
