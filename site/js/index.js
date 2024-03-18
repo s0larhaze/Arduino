@@ -12,6 +12,63 @@ const testObjs = [
     { name: "Владимир база4", status: 2, timestamp: 1710559029745 },
 ];
 
+const respons = {
+    current: {
+        name: "Воронеж база1",
+        status: 2,
+        voltage: 12,
+        current: 12,
+        date: 1710584772064,
+    }, // Существует только при тревоге
+    history: [
+        {
+            name: "Воронеж база1",
+            status: 1,
+            voltage: 12,
+            current: 12,
+            date: 1700484742064,
+            workingHours: 301,
+        },{
+            name: "Воронеж база1",
+            status: 1,
+            voltage: 13,
+            current: 10,
+            date: 1705584722064,
+            workingHours: 293,
+        },{
+            name: "Воронеж база1",
+            status: 1,
+            voltage: 12,
+            current: 12,
+            date: 1709585772064,
+            workingHours: 260,
+        },{
+            name: "Воронеж база1",
+            status: 2,
+            voltage: 12,
+            current: 12,
+            date: 1710584771064,
+        },{
+            name: "Воронеж база1",
+            status: 2,
+            voltage: 12,
+            current: 12,
+            date: 1710584771064,
+        },{
+            name: "Воронеж база1",
+            status: 2,
+            voltage: 12,
+            current: 12,
+            date: 1710584771064,
+        },{
+            name: "Воронеж база1",
+            status: 2,
+            voltage: 12,
+            current: 12,
+            date: 1710584771064,
+        },
+    ]
+};
 
 class App {
     constructor() {
@@ -21,18 +78,20 @@ class App {
     }
 
     async start() {
-        this.self = document.querySelector('body');
+        this.self = document.createElement("DIV");
+        this.self.classList.add("mainWindow");
+        document.querySelector('body').appendChild(this.self);
         let testCount = 0;
-        setInterval(() => {
-            console.log(`Test ${testCount++} start`);
-            let testObj = [];
-            this.objects.forEach((item, i) => {
-                testObj[i] = {...this.objects[i], status: Math.floor(Math.random() * 3)};
-            });
-
-            this.handleObjectsChanges(testObj);
-
-        }, 10000);
+        // setInterval(() => {
+        //     console.log(`Test ${testCount++} start`);
+        //     let testObj = [];
+        //     this.objects.forEach((item, i) => {
+        //         testObj[i] = {...this.objects[i], status: Math.floor(Math.random() * 3)};
+        //     });
+        //
+        //     this.handleObjectsChanges(testObj);
+        //
+        // }, 10000);
 
 
 
@@ -70,7 +129,6 @@ class App {
                     // Если без изменений
                     if (newObj.status === oldObj.status) return ;
 
-                    console.log("test");
                     // Обновляем объект
                     this.objects[i] = newObj;
                     // Создаем окно оповещений
@@ -96,7 +154,7 @@ class App {
                         if (this.objectItems[newObj.name]) {
                             this.objectItems[newObj.name].restart();
                         } else {
-                            this.objectItems[newObj.name] = new ObjectItem(newObj.name, newObj.status, this);
+                            this.objectItems[newObj.name] = new ObjectItem(newObj.name, newObj.status, this, newObj.timestamp);
                         }
                         div.remove();
                     });
@@ -177,6 +235,19 @@ class App {
         // };
     }
 
+    async handleQuery(query) {
+        switch (query.type) {
+            case "getObjectData":
+                // Запрашиваем данные
+                return respons;
+                break;
+            default:
+                break;
+
+        }
+        console.log(query);
+    }
+
     getTimeString(start, end) {
         const time = (end - start) / 1000;
         let hours   = (Math.floor(time / 3600) > 9) ? Math.floor(time / 3600) : `0${Math.floor(time / 3600)}`;
@@ -252,7 +323,7 @@ class App {
                 if (this.objectItems[obj.name]) {
                     this.objectItems[obj.name].restart();
                 } else {
-                    this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this);
+                    this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this, obj.timestamp);
                 }
             });
 
@@ -304,7 +375,7 @@ class App {
                 if (this.objectItems[obj.name]) {
                     this.objectItems[obj.name].restart();
                 } else {
-                    this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this);
+                    this.objectItems[obj.name] = new ObjectItem(obj.name, obj.status, this, obj.timestamp);
                 }
             });
 
