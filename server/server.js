@@ -7,16 +7,11 @@ const moment = require('moment');
 const { ReadlineParser } = require('@serialport/parser-readline')
 const path = require('path');
 const { createServer } = require('node:http');
-const { Server } = require('socket.io');
+const WebSocket = require('ws');
 
 const app = express();
 const server = createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: ":*",
-    methods: ["GET", "POST"]
-  }
-});
+const wss = new WebSocket.Server({ server });
 
 app.use(express.json());
 app.use("/socket", express.static('socket'))
@@ -24,65 +19,63 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }))
 
-io.on('connection', (socket) => {
-  console.log("Connection! " + socket.id);
+wss.on('connection', (ws) => {
+  console.log("Connection! " + ws.url);
 
-  socket.on('executePlannedMeasurementRequest', message => {
-    port.write("measure", (err) => {
-      if (err) throw err;
-    });
+  ws.on('message', (message) => {
+    handleMessage(message, ws);
   })
 
-  // TODO: Rewrite to support emergency status and emit only one object per timestamp.
-  socket.on('getListOfObjectsRequest', message => {
-    sqlcon.query(`SELECT
-      obj.id, 
-      name, 
-      status, 
-      start_timestamp AS timestamp
-      FROM objects AS obj LEFT JOIN measurements AS m ON
-      obj.id = m.object_id 
-      ORDER BY timestamp DESC`, (err, result) => {
-      if (err) throw err;
-      socket.emit('getListOfObjectsResponse', result);
-    })
-  })
-
-  socket.on('getObjectMeasurementDataRequest', message => {
-    jsonMessage = JSON.parse(message);
-    console.log("Got getData query!", jsonMessage);
-
-    selectAll = () => {
-      return new Promise((resolve, reject) => {
-        sqlcon.query(`select * from measurements where object_id = ${jsonMessage.object_id}`, (err, result) => {
-          if (err) reject(err);
-          resolve(result);
-        });
-      });
-    }
-
-    selectAll()
-      .then((result) => {
-        console.log(result);
-        socket.emit('getObjectMeasurementDataResponse', result);
-      })
-      .catch((err) => {
-        console.log("Got getData query!", message);
-      });
-  })
-
-  socket.on('startMockEmergencyRequest', message => {
-    console.log(message);
-
-    port.write("emergency", (err) => {
-      if (err) throw err;
-    });
-  })
+  ws.on('close', () => {
+    console.log('Connection closed!');
+  });
 })
 
-const port = new serial.SerialPort({ path: "/dev/ttyUSB0", baudRate: 9600 });
-const parser = port.pipe(new ReadlineParser());
-parser.on('data', arduinoMessageHandler)
+// const port = new serial.SerialPort({ path: "/dev/ttyUSB0", baudRate: 9600 });
+// const parser = port.pipe(new ReadlineParser());
+// parser.on('data', arduinoMessageHandler)
+//
+
+function handleMessage(message, ws) {
+  // Handle different types of messages
+  console.log(JSON.parse(JSON.stringify(message)));
+  try {
+    const data = JSON.parse(message);
+    switch (data.type) {
+      case 'executePlannedMeasurementRequest':
+        port.write("measure", (err) => {
+          if (err) throw err;
+        });
+        break;
+      case 'getListOfObjectsRequest':
+        sqlcon.query(`SELECT obj.id, name, status, start_timestamp AS timestamp
+                              FROM objects AS obj LEFT JOIN measurements AS m ON obj.id = m.object_id 
+                              ORDER BY timestamp DESC`, (err, result) => {
+          if (err) throw err;
+          ws.send(JSON.stringify({ type: 'getListOfObjectsResponse', data: result }));
+        });
+        break;
+      case 'getObjectMeasurementDataRequest':
+        const { object_id } = data;
+        sqlcon.query(`SELECT * FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
+          if (err) throw err;
+          ws.send(JSON.stringify({ type: 'getObjectMeasurementDataResponse', data: result }));
+        });
+        break;
+      case 'startMockEmergencyRequest':
+        port.write("emergency", (err) => {
+          if (err) throw err;
+        });
+        break;
+      case 'hello':
+        ws.send(JSON.stringify({ type: 'HelloResponse', data: "Hello you too!" }));
+      default:
+        console.log('Unknown message type:', data.type);
+    }
+  } catch (error) {
+    console.error('Failed to parse message:', message);
+  }
+}
 
 function arduinoMessageHandler(message) {
   measurementStartedDBOperation = (object_id) => {
