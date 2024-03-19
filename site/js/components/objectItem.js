@@ -57,6 +57,7 @@ export default class ObjectItem {
         this.startCheck.type = "button";
         this.startCheck.name = "startCheck";
         this.startCheck.classList.add("start_check");
+        this.startCheck.disabled = !!this.status;
         this.startCheck.addEventListener('click', (event) => {
             this.startChecking();
         });
@@ -327,6 +328,43 @@ export default class ObjectItem {
         });
 
         mSet.forEach((item, i) => {
+            switch (item) {
+                case 0:
+                    item = "Январь"
+                    break;
+                case 1:
+                    item = "Февраль"
+                    break;
+                case 2:
+                    item = "Март"
+                    break;
+                case 3:
+                    item = "Апрель"
+                    break;
+                case 4:
+                    item = "Май"
+                    break;
+                case 5:
+                    item = "Июнь"
+                    break;
+                case 6:
+                    item = "Июль"
+                    break;
+                case 7:
+                    item = "Август"
+                    break;
+                case 8:
+                    item = "Сентябрь"
+                    break;
+                case 9:
+                    item = "Октябрь"
+                    break;
+                case 10:
+                    item = "Ноябрь"
+                    break;
+                default:
+                    item = "Декабрь"
+            }
             mOption = document.createElement("OPTION");
             mOption.textContent = item;
             mOption.value = item;
@@ -394,7 +432,7 @@ export default class ObjectItem {
 
 
             let date = new Date(item.date);
-            date = `${date.getFullYear()}.${date.getMonth()}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+            date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
 
             th.textContent = `${date}`
             voltage.textContent = `${item.voltage}`;
