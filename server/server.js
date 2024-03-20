@@ -8,6 +8,7 @@ const { ReadlineParser } = require('@serialport/parser-readline')
 const path = require('path');
 const { createServer } = require('node:http');
 const WebSocket = require('ws');
+const uuid = require('uuid');
 
 const app = express();
 const server = createServer(app);
@@ -20,7 +21,8 @@ app.use(cors({
 }))
 
 wss.on('connection', (ws) => {
-  console.log("Connection! " + ws.url);
+  ws.id = uuid.v4();
+  console.log("Connection! " + ws.id);
 
   ws.on('message', (message) => {
     handleMessage(message, ws);
@@ -36,6 +38,16 @@ wss.on('connection', (ws) => {
 // parser.on('data', arduinoMessageHandler)
 //
 
+function plannedMeasurementHandler(object_id, ws) {
+  console.log(object_id);
+
+  wss.clients.forEach(element => {
+    element.send(JSON.stringify({ type: 'getObjectMeasurementDataResponse', data: "Hello" }));
+  });
+  // ws.send(JSON.stringify({ type: 'getObjectMeasurementDataResponse', data: "Hello" }));
+}
+
+
 function handleMessage(message, ws) {
   // Handle different types of messages
   console.log(JSON.parse(JSON.stringify(message)));
@@ -43,9 +55,7 @@ function handleMessage(message, ws) {
     const data = JSON.parse(message);
     switch (data.type) {
       case 'executePlannedMeasurementRequest':
-        port.write("measure", (err) => {
-          if (err) throw err;
-        });
+        plannedMeasurementHandler(data.data.object_id, ws);
         break;
       case 'getListOfObjectsRequest':
         sqlcon.query(`SELECT obj.id, name, status, start_timestamp AS timestamp
