@@ -8,16 +8,18 @@
   <body>
     <button type="" id="executePlannedMeasurementBtn">executePlannedMeasurement</button>
     <input type="" name="" value="" id="objectIdField">
-    <button type="" id="getListOfObjectsBtn">getListOfObjects</button>
+    <button type="" id="getObjectListBtn">getObjectList</button>
     <button type="" id="getObjectMeasurementDataBtn">getObjectMeasurementData</button>
     <button type="" id="startMockEmergencyBtn">startMockEmergency</button>
+    <button type="" id="resetBtn">reset</button>
     <button type="">Stop</button>
     <script>
       const executePlannedMeasurementBtn = document.getElementById('executePlannedMeasurementBtn');
-      const getListOfObjectsBtn = document.getElementById('getListOfObjectsBtn');
+      const getObjectListBtn = document.getElementById('getObjectListBtn');
       const getObjectMeasurementDataBtn = document.getElementById('getObjectMeasurementDataBtn');
       const startMockEmergencyBtn = document.getElementById('startMockEmergencyBtn');
       const objectIdField = document.getElementById('objectIdField');
+      const resetBtn = document.getElementById('resetBtn');
       let socket;
 
       function initWebSocket() {
@@ -31,16 +33,16 @@
           let data = JSON.parse(event.data);
 
           switch (data.type){
-            case "executePlannedMeasurementResponse":
+            case "executePlannedMeasurement":
               console.log("", data.data);
               break;
-            case "getListOfObjectsResponse":
+            case "getObjectList":
               console.log("", data.data);
               break;
-            case "getObjectMeasurementDataResponse":
+            case "getObjectMeasurementData":
               console.log("", data.data);
               break;
-            case "startMockEmergencyResponse":
+            case "startMockEmergency":
               console.log("", data.data);
               break;
             default:
@@ -58,19 +60,23 @@
       }
 
       executePlannedMeasurementBtn.addEventListener('click', () => {
-        sendMessage('executePlannedMeasurementRequest', { object_id: objectIdField.value });
+        sendMessage('executePlannedMeasurement', { object_id: objectIdField.value });
       });
 
-      getListOfObjectsBtn.addEventListener('click', () => {
-        sendMessage('getListOfObjectsRequest', 'All');
+      getObjectListBtn.addEventListener('click', () => {
+        sendMessage('getObjectList', 'All');
       });
 
       getObjectMeasurementDataBtn.addEventListener('click', () => {
-        sendMessage('getObjectMeasurementDataRequest', { object_id: objectIdField.value });
+        sendMessage('getObjectMeasurementData', { object_id: objectIdField.value });
       });
 
       startMockEmergencyBtn.addEventListener('click', () => {
-        sendMessage('startMockEmergencyRequest', { object_id: objectIdField.value });
+        sendMessage('startMockEmergency', { object_id: objectIdField.value });
+      });
+
+      resetBtn.addEventListener('click', () => {
+        sendMessage('reset', { object_id: objectIdField.value });
       });
 
       initWebSocket(); // инициализация WebSocket при загрузке страницы
