@@ -81,6 +81,8 @@ class App {
         this.self = document.createElement("DIV");
         this.self.classList.add("mainWindow");
         document.querySelector('body').appendChild(this.self);
+
+        this.startSocet();
         let testCount = 0;
         // setInterval(() => {
         //     console.log(`Test ${testCount++} start`);
@@ -121,7 +123,6 @@ class App {
     }
 
     handleObjectsChanges(newObjects) {
-
         // Сравниваем новые и старые объекты
         newObjects.forEach(newObj => {
             this.objects.forEach((oldObj, i) => {
@@ -167,78 +168,47 @@ class App {
     }
 
     async startSocet() {
-        let body = {
-            type: 'getObjects',
+        const url = "ws://127.0.0.1:3000";
+        this.socket = new WebSocket(url);
+
+        this.socket.onopen = function() {
+            this.socket.send(JSON.stringify({type: "getObjects"}));
         };
 
-        const url = "http://127.0.0.1:3000/api/getObjects";
-        let response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(body)
-        });
+        this.socket.onclose = function(event) {
+            if (event.wasClean) {
+                console.log('Соединение закрыто чисто');
+            } else {
+                alert('Обрыв соединения'); // например, "убит" процесс сервера
+            }
+            console.log('Код: ' + event.code + ' причина: ' + event.reason);
+        };
 
-        if (response.ok) {
-            let data = await response.json();
-            console.log(data);
-            this.data = data;
-            this.printObjects(this.data);
-        } else {
-            console.error('Failed to fetch data:', response.status);
-        }
+        this.socket.onmessage = function(event) {
+            console.log("Получены данные " + event.data);
+        };
 
-
-        // Под сокет, пока не пашет
-        // const ip = "arduino/site";
-        // const port = "8080";
-        // const path = `wss://${ip}:${port}`
-        // this.socket = new WebSocket(path);
-        //
-        // this.socket.onopen = function(e) {
-        //     // Запрашиваем объекты (в формате имя + статус)
-        //     socket.send(JSON.stringify({type: "getObjects"}));
-        // };
-        //
-        // this.socket.onmessage = function(event) {
-        //     switch (event.data.type) {
-        //         case "getObjects":
-        //             this.objects = testObjs;
-        //             // this.objects = event.data.objects;
-        //             this.printObjects(this.objects);
-        //             break;
-        //         case "alarm":
-        //             // Обрабатываем пришедшую тревогу
-        //             break;
-        //         case "testStart":
-        //             // Сообщаем о начале проверки или об ошибке
-        //             break;
-        //         case "testEnd":
-        //             // Сообщаем о завершении проверки или об ошибке
-        //             break;
-        //         default:
-        //         break;
-        //     }
-        // };
-        //
-        // this.socket.onclose = function(event) {
-        //     if (event.wasClean) {
-        //         alert(`[close] Соединение закрыто чисто, код=${event.code} причина=${event.reason}`);
-        //     } else {
-        //         alert('[close] Соединение прервано');
-        //     }
-        // };
-        //
-        // this.socket.onerror = function(error) {
-        //     alert(`[error]`);
-        // };
+        this.socket.onerror = function(error) {
+            console.log("Ошибка " + error.message);
+        };
     }
 
     async handleQuery(query) {
         switch (query.type) {
             case "getObjectData":
                 // Запрашиваем данные
+                return respons;
+                break;
+            case "clearData":
+                // Запрашиваем очистку. Если что-то пошло не так - надо сообщить
+                return respons;
+                break;
+            case "deleteObject":
+                // Запрашиваем удаление. Если что-то пошло не так - надо сообщить
+                return respons;
+                break;
+            case "startChecking":
+                // Запрашиваем удаление. Если что-то пошло не так - надо сообщить
                 return respons;
                 break;
             default:

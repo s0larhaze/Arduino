@@ -1,3 +1,8 @@
+import objectExporter from "../libs/index.js";
+
+// clearData ожидает, что придет объект с полями: status bool и (reason при ошибке)
+// startChecking ожидает, что придет объект с полями: status bool и (reason при ошибке)
+// deleteObject ожидает, что придет объект с полями: status bool и (reason при ошибке)
 export default class ObjectItem {
     constructor(name, status, parent, timestamp = null) {
         this.id = name;
@@ -10,6 +15,8 @@ export default class ObjectItem {
     }
 
     async start() {
+        // Это для перерисоки
+        if (this.self) this.self.remove();
         // Получаем данные
         this.data = await this.parent.handleQuery({type: 'getObjectData', name: this.id});
         const current = this.data.current;
@@ -35,6 +42,9 @@ export default class ObjectItem {
         this.main = document.createElement("MAIN");
         this.back = document.createElement("BUTTON");
         this.startCheck = document.createElement("BUTTON");
+        this.clearBut = document.createElement("BUTTON");
+        this.deleteBut = document.createElement("BUTTON");
+        this.exportToExcelBut = document.createElement("BUTTON");
         this.timer = document.createElement("SPAN");
         this.selectTimeline = document.createElement("SECTION");
         this.tableContainer = document.createElement("SECTION");
@@ -66,6 +76,32 @@ export default class ObjectItem {
         this.timer.textContent = "00:00:00";
         this.timer.classList.add("timer");
         this.startTimer();
+        // Кнопка сброса данных
+        this.clearBut.textContent = "Очистить данные";
+        this.clearBut.type = "button";
+        this.clearBut.name = "clearBut";
+        this.clearBut.classList.add("start_check");
+        this.clearBut.disabled = !this.reference;
+        this.clearBut.addEventListener('click', (event) => {
+            this.clearData();
+        });
+        // Кнопка удаления объекта
+        this.deleteBut.textContent = "Удалить объект";
+        this.deleteBut.type = "button";
+        this.deleteBut.name = "deleteBut";
+        this.deleteBut.classList.add("start_check");
+        this.deleteBut.addEventListener('click', (event) => {
+            this.deleteObject();
+        });
+        // Кнопка экспорта данных в таблицу
+        this.exportToExcelBut.textContent = "Экспортировать в excel";
+        this.exportToExcelBut.type = "button";
+        this.exportToExcelBut.name = "exportToExcelBut";
+        this.exportToExcelBut.classList.add("start_check");
+        this.exportToExcelBut.disabled = !this.reference;
+        this.exportToExcelBut.addEventListener('click', (event) => {
+            this.exportToExcel();
+        });
 
         // Контейнеры
         this.selectTimeline.classList.add("selectTimeline");
@@ -102,6 +138,9 @@ export default class ObjectItem {
         this.header.appendChild(this.back);
         this.header.appendChild(this.timer);
         this.header.appendChild(this.startCheck);
+        this.header.appendChild(this.clearBut);
+        this.header.appendChild(this.deleteBut);
+        this.header.appendChild(this.exportToExcelBut);
 
         // Заполняем тело
         this.main.appendChild(this.selectTimeline);
@@ -119,23 +158,89 @@ export default class ObjectItem {
         this.self.appendChild(this.main);
     }
 
+    clearData() {
+        if(!confirm("Вы уверены, что хотите очистить данные об этом объекте?")) return ;
+        if(confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
+
+        const result = this.parent.handleQuery({type: "clearData"});
+        if (result.status) {
+            this.start();
+        } else {
+            alert(`Очистить данные о проверке не удалось. Причина: ${result.reason}`);
+        }
+    }
+
+    deleteObject() {
+        if(!confirm("Вы уверены, что хотите удалить данный объект?")) return ;
+        if(confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
+
+        this.parent.handleQuery({type: "deleteObject"});
+
+        const result = this.parent.handleQuery({type: "clearData"});
+        if (result.status) {
+            this.finish();
+        } else {
+            alert(`Удалить объект не удалось. Причина: ${result.reason}`);
+        }
+    }
+
+    exportToExcel() {
+        const data = [...this.data];
+        objectExporter({
+            exportable: data, // The dataset to be exported form an array of objects, it can also be the DOM name for exporting DOM to html
+            type: "csv", // The type of exportable e.g. csv, xls or pdf
+            headers: [
+                {
+                    name: "Name", // Name of the field without space to be used internally
+                    alias: "Name", // The name of field which will be visualized in the export
+                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
+                }, {
+                    name: "Status", // Name of the field without space to be used internally
+                    alias: "Status", // The name of field which will be visualized in the export
+                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
+                }, {
+                    name: "Voltage", // Name of the field without space to be used internally
+                    alias: "Voltage", // The name of field which will be visualized in the export
+                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
+                }, {
+                    name: "Current", // Name of the field without space to be used internally
+                    alias: "Current", // The name of field which will be visualized in the export
+                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
+                }, {
+                    name: "TimeStamp", // Name of the field without space to be used internally
+                    alias: "TimeStamp", // The name of field which will be visualized in the export
+                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
+                }, {
+                    name: "WorkingHours", // Name of the field without space to be used internally
+                    alias: "WorkingHours", // The name of field which will be visualized in the export
+                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
+                },
+            ],
+            fileName: `${this.id}_отчет${new Date().getTime()}`,
+        })
+    }
+
+    startChecking() {
+        // Блокируем кнопку начала проверки
+        this.startCheck.disabled = true;
+
+        this.parent.handleQuery({type: "startChecking"});
+
+        const result = this.parent.handleQuery({type: "clearData"});
+        if (result.status) {
+            this.start();
+        } else {
+            this.startCheck.disabled = false;
+            alert(`Запустить проверку не удалось. Причина: ${result.reason}`);
+        }
+    }
+
     finish() {
         this.self.remove();
     }
 
     restart() {
         this.parent.self.appendChild(this.self);
-    }
-
-    async startChecking() {
-        // Блокируем кнопку начала проверки
-        this.startCheck.disabled = true;
-
-        // Просим сервер запустить проверку.
-
-        // Ловим ответ
-
-        // Делаем что-то, в зависимости от ответа
     }
 
     getTimeString(start, end) {

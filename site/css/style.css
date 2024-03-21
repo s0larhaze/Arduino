@@ -109,6 +109,10 @@ header {
     border-radius: var(--b-small);
 }
 
+[name="clearBut"] {
+    margin-left: auto;
+}
+
 .timer {
     padding: var(--p-small);
     margin-right: var(--m-small);
