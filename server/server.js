@@ -59,6 +59,12 @@ function handleMessage(message, ws) {
     case 'arduinoObjectRegistration':
       objectRegistrationHandler(object_id, ws);
       break;
+    case 'getCurrentObjectRegistrationSocket':
+      console.log(connectedObjects.get(object_id));
+      console.log("ObjectId:");
+      console.log(object_id);
+      ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
+      break;
     case 'executePlannedMeasurement':
       object_socket = connectedObjects.get(object_id); // not working, gotta find a better solution
       executePlannedMeasurementHandler(object_id, object_socket);
@@ -117,8 +123,8 @@ function emergencyHandler(current, voltage, object_id) {
 
 function objectRegistrationHandler(object_id, ws) {
 
-  if (object_id === '') {
-    console.log("object_id cannot be empty");
+  if (object_id === '' || object_id === undefined || object_id === null) {
+    console.log("object_id cannot be empty, undefined or null");
     return;
   }
 
@@ -147,8 +153,9 @@ function objectRegistrationHandler(object_id, ws) {
       if (count === 0) {
         registerObject();
       }
+      connectedObjects.set(object_id, ws)
+      console.log(connectedObjects.get(object_id))
     })
-    .then(() => connectedObjects.set(object_id, ws))
     .catch(err => {
       console.log(err);
     })
@@ -186,7 +193,7 @@ function resetHandler(object_id) {
         return new Promise((resolve, reject) => {
           sqlcon.query(`create table if not exists objects 
         (
-        id int primary key,
+        id int,
           name text,
           status tinyint
         )`, (err, result) => {
@@ -200,7 +207,7 @@ function resetHandler(object_id) {
         return new Promise((resolve, reject) => {
           sqlcon.query(`create table if not exists measurements 
           (
-            id int auto_increment primary key, 
+            id int, 
             avg_current float,
             avg_voltage float,
             start_timestamp timestamp,
@@ -218,7 +225,7 @@ function resetHandler(object_id) {
         return new Promise((resolve, reject) => {
           sqlcon.query(`create table if not exists emergency 
           (
-            id int auto_increment primary key,
+            id int,
             current float,voltage float,
             timestamp timestamp,
             object_id int
