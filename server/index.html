@@ -12,6 +12,7 @@
     <button type="" id="getObjectMeasurementDataBtn">getObjectMeasurementData</button>
     <button type="" id="startMockEmergencyBtn">startMockEmergency</button>
     <button type="" id="resetBtn">reset</button>
+    <button type="" id="getCurrentObjectRegistrationSocketBtn">getCurrentObjectRegistrationSocket</button>
     <button type="">Stop</button>
     <script>
       const executePlannedMeasurementBtn = document.getElementById('executePlannedMeasurementBtn');
@@ -20,6 +21,7 @@
       const startMockEmergencyBtn = document.getElementById('startMockEmergencyBtn');
       const objectIdField = document.getElementById('objectIdField');
       const resetBtn = document.getElementById('resetBtn');
+      const getCurrentObjectRegistrationSocketBtn = document.getElementById('getCurrentObjectRegistrationSocketBtn');
       let socket;
 
       function initWebSocket() {
@@ -45,6 +47,9 @@
             case "startMockEmergency":
               console.log("", data.data);
               break;
+            case "getCurrentObjectRegistrationSocket":
+              console.log("", data.data);
+              break;
             default:
               console.log("Unknown message");
           }
@@ -58,6 +63,10 @@
         };
         socket.send(JSON.stringify(message));
       }
+
+      getCurrentObjectRegistrationSocketBtn.addEventListener('click', () => {
+        sendMessage('getCurrentObjectRegistrationSocket', { object_id: objectIdField.value });
+      });
 
       executePlannedMeasurementBtn.addEventListener('click', () => {
         sendMessage('executePlannedMeasurement', { object_id: objectIdField.value });
