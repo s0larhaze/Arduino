@@ -42,6 +42,7 @@ function handleMessage(message, ws) {
   console.log(type);
   console.log(data);
   object_id = data.object_id;
+  console.log(object_id);
 
   switch (type) {
     case 'arduinoStartedMeasurement':
@@ -117,7 +118,7 @@ function emergencyHandler(current, voltage, object_id) {
 
 function objectRegistrationHandler(object_id, ws) {
 
-  if (object_id === '') {
+  if (object_id === '' || object_id === undefined) {
     console.log("object_id cannot be empty");
     return;
   }
@@ -150,6 +151,7 @@ function objectRegistrationHandler(object_id, ws) {
     })
     .then(() => connectedObjects.set(object_id, ws))
     .catch(err => {
+      console.log("Cathed an error");
       console.log(err);
     })
 }
