@@ -18,9 +18,7 @@ export default class ObjectItem {
         // Это для перерисовки
         if (this.self) this.self.remove();
         // Получаем данные
-        this.data = await this.parent.handleQuery({ type: 'getObjectData', name: this.id });
-        console.log("THISDATA: " + this.data);
-        console.log(this.data);
+        this.data = await this.parent.handleQuery({ type: 'getObjectData', name: this.id, self: this });
         // Если данных нет
         if (this.data && this.data.history) {
             const current = this.data.current || null;

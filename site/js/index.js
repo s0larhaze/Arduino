@@ -75,6 +75,7 @@ class App {
         this.objectItems = [];
         this.waitingObjects = [];
         this.objects = testObjs;
+        this.responses = [];
         this.start();
     }
 
@@ -194,45 +195,40 @@ class App {
     }
 
     async handleQuery(query) {
-        if (this.socket.readyState !== 1) return;
+    return new Promise((resolve, reject) => {
+        if (this.socket.readyState !== 1) {
+            reject(new Error('Socket is not ready.'));
+            return;
+        }
+
         switch (query.type) {
             case "getObjectData":
                 this.socket.send(JSON.stringify(query));
-                console.log(query);
                 this.waitingObjects.push({ name: query.name, respons: null, state: 0 });
-                let respons = null;
-                const interval = setInterval(async () => {
-                    this.waitingObjects.forEach(async (item, i) => {
+                this.responses[query.name] = null;
+                const interval = setInterval(() => {
+                    this.waitingObjects.forEach((item, i) => {
                         if (item.name !== query.name) return;
                         if (item.state) {
-                            respons = await item.respons;
+                            clearInterval(interval);
+                            console.log(item.respons);
+                            resolve(item.respons);
                         }
-                        console.log(item);
                     });
-                    clearInterval(interval);
-                    console.log("RESPONSE: " + respons);
-                    console.log(respons);
-                    return await respons;
                 }, 10);
                 break;
             case "clearData":
-                this.socket.send(JSON.stringify(query));
-                // return respons;
-                break;
             case "deleteObject":
-                this.socket.send(JSON.stringify(query));
-                // return respons;
-                break;
             case "startChecking":
                 this.socket.send(JSON.stringify(query));
-                // return respons;
+                resolve(); // Resolve без данных, так как эти запросы не возвращают результат.
                 break;
             default:
-                break;
-
+                reject(new Error('Unknown query type.'));
         }
-        console.log(query);
-    }
+    });
+}
+
 
     getTimeString(start, end) {
         const time = (end - start) / 1000;
