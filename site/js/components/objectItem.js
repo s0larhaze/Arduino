@@ -9,7 +9,7 @@ export default class ObjectItem {
         this.status = status;
         this.parent = parent;
         this.timestamp = timestamp;
-        this.filter = {year: "null", month: "null", day: "null"};
+        this.filter = { year: "null", month: "null", day: "null" };
 
         this.start();
     }
@@ -18,11 +18,13 @@ export default class ObjectItem {
         // Это для перерисовки
         if (this.self) this.self.remove();
         // Получаем данные
-        this.data = await this.parent.handleQuery({type: 'getObjectData', name: this.id});
+        this.data = await this.parent.handleQuery({ type: 'getObjectData', name: this.id });
+        console.log("THISDATA: " + this.data);
+        console.log(this.data);
         // Если данных нет
         if (this.data && this.data.history) {
             const current = this.data.current || null;
-            this.data = this.data.history.sort((a, b) => {return a.timestamp - b.timestamp});
+            this.data = this.data.history.sort((a, b) => { return a.timestamp - b.timestamp });
             this.reference = this.data.shift();
             for (let i = this.data.length - 1; i > 0; i--) {
                 if (this.data[i].status === 1) {
@@ -164,10 +166,10 @@ export default class ObjectItem {
     }
 
     clearData() {
-        if(!confirm("Вы уверены, что хотите очистить данные об этом объекте?")) return ;
-        if(confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
+        if (!confirm("Вы уверены, что хотите очистить данные об этом объекте?")) return;
+        if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        this.parent.handleQuery({type: "clearData"});
+        this.parent.handleQuery({ type: "clearData" });
         // const result = this.parent.handleQuery({type: "clearData"});
         // if (result.status) {
         //     this.start();
@@ -177,12 +179,12 @@ export default class ObjectItem {
     }
 
     deleteObject() {
-        if(!confirm("Вы уверены, что хотите удалить данный объект?")) return ;
-        if(confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
+        if (!confirm("Вы уверены, что хотите удалить данный объект?")) return;
+        if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        this.parent.handleQuery({type: "deleteObject"});
+        this.parent.handleQuery({ type: "deleteObject" });
 
-        const result = this.parent.handleQuery({type: "clearData"});
+        const result = this.parent.handleQuery({ type: "clearData" });
         if (result.status) {
             this.finish();
         } else {
@@ -230,9 +232,9 @@ export default class ObjectItem {
         // Блокируем кнопку начала проверки
         this.startCheck.disabled = true;
 
-        this.parent.handleQuery({type: "startChecking"});
+        this.parent.handleQuery({ type: "startChecking" });
 
-        const result = this.parent.handleQuery({type: "clearData"});
+        const result = this.parent.handleQuery({ type: "clearData" });
         if (result.status) {
             this.start();
         } else {
@@ -251,7 +253,7 @@ export default class ObjectItem {
 
     getTimeString(start, end) {
         const time = (end - start) / 1000;
-        let hours   = (Math.floor(time / 3600) > 9) ? Math.floor(time / 3600) : `0${Math.floor(time / 3600)}`;
+        let hours = (Math.floor(time / 3600) > 9) ? Math.floor(time / 3600) : `0${Math.floor(time / 3600)}`;
         let minutes = (Math.floor((time % 3600) / 60) > 9) ? Math.floor((time % 3600) / 60) : `0${Math.floor((time % 3600) / 60)}`;
         let seconds = (Math.floor(time % 60) > 9) ? Math.floor(time % 60) : `0${Math.floor(time % 60)}`;
 
@@ -287,7 +289,7 @@ export default class ObjectItem {
         let filteredData = [];
         let temp = [];
         let months = new Set();
-        let days   = new Set();
+        let days = new Set();
 
         // Если выбран год
         if (this.filter.year != "null") {
@@ -304,31 +306,31 @@ export default class ObjectItem {
             });
         }
         // Обновляем фильтр месяцев
-            // Если год не выбран - отображаем все месяцы
-            if (!months.size) {
-                this.data.forEach(item => {
-                    let date = new Date(item.date);
-                    months.add(date.getMonth());
-                });
-            }
-
-            months = Array.from(months).sort((a, b) => { return a - b });
-
-            // Чистим все кроме пустого элемента
-            this.selectMonth.querySelectorAll("option").forEach((item, i) => {
-                if (item.value == "null") return ;
-                item.remove();
+        // Если год не выбран - отображаем все месяцы
+        if (!months.size) {
+            this.data.forEach(item => {
+                let date = new Date(item.date);
+                months.add(date.getMonth());
             });
-            // Наполняем фильтр значениями
-            months.forEach((item, i) => {
-                const op = document.createElement("OPTION");
-                op.textContent = item;
-                op.value = item;
+        }
 
-                if (item == this.filter.month) op.selected = true;
+        months = Array.from(months).sort((a, b) => { return a - b });
 
-                this.selectMonth.appendChild(op);
-            });
+        // Чистим все кроме пустого элемента
+        this.selectMonth.querySelectorAll("option").forEach((item, i) => {
+            if (item.value == "null") return;
+            item.remove();
+        });
+        // Наполняем фильтр значениями
+        months.forEach((item, i) => {
+            const op = document.createElement("OPTION");
+            op.textContent = item;
+            op.value = item;
+
+            if (item == this.filter.month) op.selected = true;
+
+            this.selectMonth.appendChild(op);
+        });
 
         // Месяц
         if (this.filter.month != "null") {
@@ -352,31 +354,31 @@ export default class ObjectItem {
 
         // Обновляем фильтр дней
 
-            // Если месяц не выбран - отображаем все дни
-            if (!days.size) {
-                this.data.forEach(item => {
-                    let date = new Date(item.date);
-                    days.add(date.getDay());
-                });
-            }
-
-            days = Array.from(days).sort((a, b) => { return a - b });
-
-            // Чистим все кроме пустого элемента
-            this.selectDay.querySelectorAll("option").forEach((item, i) => {
-                if (item.value == "null") return ;
-                item.remove();
+        // Если месяц не выбран - отображаем все дни
+        if (!days.size) {
+            this.data.forEach(item => {
+                let date = new Date(item.date);
+                days.add(date.getDay());
             });
-            // Наполняем фильтр значениями
-            days.forEach((item, i) => {
-                const op = document.createElement("OPTION");
-                op.textContent = item;
-                op.value = item;
+        }
 
-                if (item == this.filter.day) op.selected = true;
+        days = Array.from(days).sort((a, b) => { return a - b });
 
-                this.selectDay.appendChild(op);
-            });
+        // Чистим все кроме пустого элемента
+        this.selectDay.querySelectorAll("option").forEach((item, i) => {
+            if (item.value == "null") return;
+            item.remove();
+        });
+        // Наполняем фильтр значениями
+        days.forEach((item, i) => {
+            const op = document.createElement("OPTION");
+            op.textContent = item;
+            op.value = item;
+
+            if (item == this.filter.day) op.selected = true;
+
+            this.selectDay.appendChild(op);
+        });
         // День
         if (this.filter.day != "null") {
             filteredData.forEach(item => {
@@ -400,19 +402,19 @@ export default class ObjectItem {
         // Получаем данные
         // Начальное значение
         let yOption = document.createElement("OPTION");
-            yOption.textContent = "Выберите год";
-            yOption.value = null;
-            this.selectYear.appendChild(yOption);
+        yOption.textContent = "Выберите год";
+        yOption.value = null;
+        this.selectYear.appendChild(yOption);
 
         let mOption = document.createElement("OPTION");
-            mOption.textContent = "Выберите месяц";
-            mOption.value = null;
-            this.selectMonth.appendChild(mOption);
+        mOption.textContent = "Выберите месяц";
+        mOption.value = null;
+        this.selectMonth.appendChild(mOption);
 
         let dOption = document.createElement("OPTION");
-            dOption.textContent = "Выберите день";
-            dOption.value = null;
-            this.selectDay.appendChild(dOption);
+        dOption.textContent = "Выберите день";
+        dOption.value = null;
+        this.selectDay.appendChild(dOption);
 
         let ySet = new Set();
         let mSet = new Set();
@@ -527,7 +529,7 @@ export default class ObjectItem {
 
     fillTableBody(data) {
         // Если таблица уже существует
-        if(this.table.querySelector('tbody')) this.table.querySelector('tbody').remove();
+        if (this.table.querySelector('tbody')) this.table.querySelector('tbody').remove();
 
         const tbody = document.createElement("TBODY");
         data.forEach((item, i) => {
@@ -564,11 +566,9 @@ export default class ObjectItem {
             if (item.status === 2) {
                 workingHoursDuration = (this.lastMeasurement.current * this.lastMeasurement.workingHours) / item.current;
             }
-            workingHoursDuration = `${
-                (Math.floor(workingHoursDuration / 60) > 9)
-                    ? Math.floor(workingHoursDuration / 60)
-                    : `0${Math.floor(workingHoursDuration / 60)}`}:${
-                (Math.floor(workingHoursDuration % 60) > 9)
+            workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
+                ? Math.floor(workingHoursDuration / 60)
+                : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
                     ? Math.floor(workingHoursDuration % 60)
                     : `0${Math.floor(workingHoursDuration % 60)}`}`;
 

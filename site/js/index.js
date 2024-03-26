@@ -28,39 +28,39 @@ const respons = {
             current: 12,
             date: 1700484742064,
             workingHours: 301,
-        },{
+        }, {
             name: "Воронеж база1",
             status: 1,
             voltage: 13,
             current: 10,
             date: 1705584722064,
             workingHours: 293,
-        },{
+        }, {
             name: "Воронеж база1",
             status: 1,
             voltage: 12,
             current: 12,
             date: 1709585772064,
             workingHours: 260,
-        },{
+        }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
             current: 12,
             date: 1710584771064,
-        },{
+        }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
             current: 12,
             date: 1710584771064,
-        },{
+        }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
             current: 12,
             date: 1710584771064,
-        },{
+        }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
@@ -85,7 +85,7 @@ class App {
 
         this.startSocet();
 
-        this.printObjects(testObjs);
+        // this.printObjects(testObjs);
     }
 
     handleObjectsChanges(newObjects) {
@@ -94,30 +94,30 @@ class App {
             this.objects.forEach((oldObj, i) => {
                 if (newObj.name === oldObj.name) {
                     // Если без изменений
-                    if (newObj.status === oldObj.status) return ;
+                    if (newObj.status === oldObj.status) return;
 
                     // Обновляем объект
                     this.objects[i] = newObj;
                     // Создаем окно оповещений
                     let div = document.createElement("DIV");
-                        div.classList.add("alarmWindow");
+                    div.classList.add("alarmWindow");
                     // Тревога
                     (newObj.status == 2)
-                    ? div.innerHTML = `На объекте ${newObj.name} произошла черезвычайная ситуация. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`
-                    : div.innerHTML = `На объекте ${newObj.name} началась проверка. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
+                        ? div.innerHTML = `На объекте ${newObj.name} произошла черезвычайная ситуация. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`
+                        : div.innerHTML = `На объекте ${newObj.name} началась проверка. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
 
                     // Кнопка закрытия
                     let closeButton = document.createElement("BUTTON");
-                        closeButton.innerHTML = '&#11198;';
-                        closeButton.classList.add("alarmWindow_closeButton");
-                        closeButton.addEventListener('click', () => {
-                            div.remove();
-                        });
-                        div.appendChild(closeButton);
+                    closeButton.innerHTML = '&#11198;';
+                    closeButton.classList.add("alarmWindow_closeButton");
+                    closeButton.addEventListener('click', () => {
+                        div.remove();
+                    });
+                    div.appendChild(closeButton);
 
                     // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
                     div.addEventListener("click", (event) => {
-                        if (event.target !== div) return ;
+                        if (event.target !== div) return;
                         if (this.objectItems[newObj.name]) {
                             this.objectItems[newObj.name].restart();
                         } else {
@@ -140,7 +140,7 @@ class App {
 
         // Если подключили - запрашиваем объекты
         this.socket.onopen = () => {
-            this.socket.send(JSON.stringify({type: "getObjects"}));
+            this.socket.send(JSON.stringify({ type: "getObjects" }));
         };
 
         // Если закрыли - переподключаемся
@@ -166,7 +166,7 @@ class App {
             let data = JSON.parse(event.data);
             switch (data.type) {
                 case "getObjects":
-                    this.objects = data.objects || [];
+                    this.objects = data.data || [];
                     this.printObjects(this.objects);
                     break;
                 case "objectsChanges":
@@ -175,9 +175,9 @@ class App {
                     break;
                 case "getObjectData":
                     this.waitingObjects.forEach((item, i) => {
-                        if (item.name !== query.name) return;
+                        if (item.name !== data.data.current.name) return;
                         item.state = 1;
-                        item.respons = data.respons;
+                        item.respons = data.data;
                     });
                     break;
                 case "objectDataChanges":
@@ -194,21 +194,25 @@ class App {
     }
 
     async handleQuery(query) {
-        if (this.socket.readyState !== 1) return ;
+        if (this.socket.readyState !== 1) return;
         switch (query.type) {
             case "getObjectData":
                 this.socket.send(JSON.stringify(query));
-                this.waitingObjects.push({name: query.name, respons: null, state: 0});
+                console.log(query);
+                this.waitingObjects.push({ name: query.name, respons: null, state: 0 });
                 let respons = null;
-                const interval = setInterval(() => {
-                    this.waitingObjects.forEach((item, i) => {
+                const interval = setInterval(async () => {
+                    this.waitingObjects.forEach(async (item, i) => {
                         if (item.name !== query.name) return;
                         if (item.state) {
-                            respons = item.respons;
+                            respons = await item.respons;
                         }
+                        console.log(item);
                     });
                     clearInterval(interval);
-                    return respons;
+                    console.log("RESPONSE: " + respons);
+                    console.log(respons);
+                    return await respons;
                 }, 10);
                 break;
             case "clearData":
@@ -232,7 +236,7 @@ class App {
 
     getTimeString(start, end) {
         const time = (end - start) / 1000;
-        let hours   = (Math.floor(time / 3600) > 9) ? Math.floor(time / 3600) : `0${Math.floor(time / 3600)}`;
+        let hours = (Math.floor(time / 3600) > 9) ? Math.floor(time / 3600) : `0${Math.floor(time / 3600)}`;
         let minutes = (Math.floor((time % 3600) / 60) > 9) ? Math.floor((time % 3600) / 60) : `0${Math.floor((time % 3600) / 60)}`;
         let seconds = (Math.floor(time % 60) > 9) ? Math.floor(time % 60) : `0${Math.floor(time % 60)}`;
 
@@ -249,43 +253,43 @@ class App {
 
         // Поиск по объектам
         let search = document.createElement("INPUT");
-            search.classList.add("objects_search");
-            search.type = "text";
-            search.name = "search";
-            search.placeholder = "Название объекта";
-            search.addEventListener("input", () => {
-                this.container.querySelectorAll("li").forEach((item, i) => {
-                    if (item.id.indexOf(search.value) === -1) {
-                        item.classList.add("hidden");
-                    } else {
-                        item.classList.remove("hidden");
-                    }
-                });
-
+        search.classList.add("objects_search");
+        search.type = "text";
+        search.name = "search";
+        search.placeholder = "Название объекта";
+        search.addEventListener("input", () => {
+            this.container.querySelectorAll("li").forEach((item, i) => {
+                if (item.id.indexOf(search.value) === -1) {
+                    item.classList.add("hidden");
+                } else {
+                    item.classList.remove("hidden");
+                }
             });
-            this.container.appendChild(search);
+
+        });
+        this.container.appendChild(search);
 
         // Заголовок Тревог
         let heading = document.createElement("H2");
-            heading.classList.add("objects_heading");
-            heading.textContent = "Тревоги"
-            this.container.appendChild(heading);
+        heading.classList.add("objects_heading");
+        heading.textContent = "Тревоги"
+        this.container.appendChild(heading);
 
         // Выводим объекты со статусом тревоги
         this.objects.forEach((obj, i) => {
             if (obj.status !== 2) return;
             let objItem = document.createElement("li");
-                objItem.classList.add("objectsItem");
-                objItem.id = obj.name;
+            objItem.classList.add("objectsItem");
+            objItem.id = obj.name;
 
             let objName = document.createElement("H2");
-                objName.textContent = obj.name;
+            objName.textContent = obj.name;
 
             let objStatus = document.createElement("P");
-                objStatus.textContent = "Тревога";
+            objStatus.textContent = "Тревога";
 
             let timer = document.createElement("SPAN");
-                timer.textContent = "-:-:-";
+            timer.textContent = "-:-:-";
 
             objItem.appendChild(objName);
             objItem.appendChild(objStatus);
@@ -317,27 +321,27 @@ class App {
         });
 
         // Заголовок Проверок
-            heading = document.createElement("H2");
-            heading.classList.add("objects_heading");
-            heading.textContent = "Проверки"
-            this.container.appendChild(heading);
+        heading = document.createElement("H2");
+        heading.classList.add("objects_heading");
+        heading.textContent = "Проверки"
+        this.container.appendChild(heading);
 
         // Выводим объекты со статусом Проверки
         this.objects.forEach((obj, i) => {
             if (obj.status !== 1) return;
             let objItem = document.createElement("li");
-                objItem.classList.add("objectsItem");
-                objItem.id = obj.name;
+            objItem.classList.add("objectsItem");
+            objItem.id = obj.name;
 
 
             let objName = document.createElement("H2");
-                objName.textContent = obj.name;
+            objName.textContent = obj.name;
 
             let objStatus = document.createElement("P");
-                objStatus.textContent = "Проверка";
+            objStatus.textContent = "Проверка";
 
             let timer = document.createElement("SPAN");
-                timer.textContent = "-:-:-";
+            timer.textContent = "-:-:-";
 
             objItem.appendChild(objName);
             objItem.appendChild(objStatus);
@@ -378,18 +382,18 @@ class App {
         this.objects.forEach((obj, i) => {
             if (obj.status !== 0) return;
             let objItem = document.createElement("li");
-                objItem.classList.add("objectsItem");
-                objItem.id = obj.name;
+            objItem.classList.add("objectsItem");
+            objItem.id = obj.name;
 
 
             let objName = document.createElement("H2");
-                objName.textContent = obj.name;
+            objName.textContent = obj.name;
 
             let objStatus = document.createElement("P");
-                objStatus.textContent = "Работает штатно";
+            objStatus.textContent = "Работает штатно";
 
             let timer = document.createElement("SPAN");
-                timer.textContent = "-:-:-";
+            timer.textContent = "-:-:-";
 
             objItem.appendChild(objName);
             objItem.appendChild(objStatus);
