@@ -34,15 +34,29 @@ wss.on('connection', (ws) => {
   });
 })
 
-function handleMessage(message, ws) {
-  const type = JSON.parse(message).type;
-  const data = JSON.parse(message).data;
+function getObjectSocket(object_id) {
+  keys = connectedObjects.keys();
 
-  console.log(JSON.parse(message));
-  console.log(type);
-  console.log(data);
-  object_id = data.object_id;
-  console.log(object_id);
+  for (let i = 0; i < keys.length; i++) {
+    if (keys[i].object_id === object_id)
+      return connectedObjects.values()[i];
+  }
+
+  return null;
+}
+
+function getObjectIdByName(name) {
+  return new Promise((resolve, reject) => {
+    sqlcon.query(`select id as object_id from objects where name = '${name}'`, (err, result) => {
+      if (err) reject(err);
+      resolve(result[0].object_id);
+    })
+  })
+}
+
+function handleMessage(message, ws) {
+  let message_json = JSON.parse(message);
+  const type = message_json.type;
 
   switch (type) {
     case 'arduinoStartedMeasurement':
@@ -67,16 +81,27 @@ function handleMessage(message, ws) {
       ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
       break;
     case 'executePlannedMeasurement':
+      console.log(connectedObjects.keys());
       object_socket = connectedObjects.get(object_id); // not working, gotta find a better solution
       executePlannedMeasurementHandler(object_id, object_socket);
       break;
-    case 'getObjectList':
-      getObjectListHandler(ws);
+    case 'getObjects':
+      getObjectsHandler(ws);
       break;
     case 'getObjectMeasurementData':
       getObjectMeasurementDataHandler(object_id, ws);
       break;
+    case 'getObjectData':
+      let name = message_json.name;
+      getObjectIdByName(name)
+        .then((result) => {
+          object_id = result;
+          console.log("OBJECT_ID = " + object_id);
+          getObjectData(object_id, name, ws);
+        })
+      break;
     case 'startMockEmergency':
+      console.log(connectedObjects.keys());
       object_socket = connectedObjects.get(object_id); // not working, gotta find a better solution
       startMockEmergencyHandler(object_id, object_socket);
       break;
@@ -90,6 +115,70 @@ function handleMessage(message, ws) {
 
 function emergencyStoppedHandler() {
   // todo
+}
+
+async function getObjectData(object_id, name, ws) {
+  object_name = '';
+  current = null;
+  console.log(object_id);
+  history = [];
+
+  getObjectName = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    });
+  }
+
+  getEmergencyData = (object_name) => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp desc;`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      });
+    })
+  }
+
+  getMeasurementsData = (object_name) => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
+        if (err) reject(err);
+        console.log(result);
+        resolve(result);
+      });
+    })
+  }
+
+  getObjectName()
+    .then(name_of_object => {
+      object_name = name_of_object;
+    })
+    .then(getEmergencyData, object_name)
+    .then(emergencies => {
+      current = emergencies[0];
+      current['name'] = name;
+
+      for (let index = 1; index < emergencies.length; index++) {
+        history.push(emergencies[index]);
+      }
+
+      console.log("History");
+      console.log(history);
+    })
+    .then(getMeasurementsData, object_name)
+    .then(measurements => {
+
+      for (let index = 0; index < measurements.length; index++) {
+        history.push(measurements[index]);
+      }
+
+      console.log("History");
+      console.log(history);
+
+      ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history } }));
+    })
 }
 
 function startMockEmergencyHandler(object_id, ws) {
@@ -110,16 +199,84 @@ function getObjectMeasurementDataHandler(object_id, ws) {
   });
 }
 
-function emergencyHandler(current, voltage, object_id) {
-  sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values 
-  (
-    ${current},
-    ${voltage},
-    '${moment().format('YYYY-MM-DD HH:mm:ss')}',
-    ${object_id}
-  )`, err => {
-    if (err) throw err;
-  })
+function emergencyHandler(current, voltage, object_id, ws) {
+
+  insertIntoEmergency = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values 
+      (
+        ${current},
+        ${voltage},
+        '${moment().format('YYYY-MM-DD HH:mm:ss')}',
+        ${object_id}
+      )`, err => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    })
+  }
+
+  object_name = '';
+  current = null;
+  console.log(object_id);
+  history = [];
+
+  getObjectName = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    });
+  }
+
+  getEmergencyData = (object_name) => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp desc;`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      });
+    })
+  }
+
+  getMeasurementsData = (object_name) => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
+        if (err) reject(err);
+        console.log(result);
+        resolve(result);
+      });
+    })
+  }
+
+  insertIntoEmergency()
+    .then(getObjectName)
+    .then(name_of_object => {
+      object_name = name_of_object;
+    })
+    .then(getEmergencyData, object_name)
+    .then(emergencies => {
+      current = emergencies[0];
+
+      for (let index = 1; index < emergencies.length; index++) {
+        history.push(emergencies[index]);
+      }
+
+      console.log("History");
+      console.log(history);
+    })
+    .then(getMeasurementsData, object_name)
+    .then(measurements => {
+
+      for (let index = 0; index < measurements.length; index++) {
+        history.push(measurements[index]);
+      }
+
+      console.log("History");
+      console.log(history);
+
+      ws.send(JSON.stringify({ type: 'objectDataChanges', data: { 'current': current, 'history': history } }));
+    })
 }
 
 function objectRegistrationHandler(object_id, ws) {
@@ -302,9 +459,17 @@ function resetHandler(object_id) {
     .then(dumpEmergencyRecords)
     .then(resetMeasurementRecords)
     .then(resetEmergencyRecords)
+    .then(() => {
+      ws.send('clearData', { status: "true" });
+    })
     .catch(err => {
       console.log(err);
+      ws.send('clearData', { status: "false" });
     });
+}
+
+function deleteObject() {
+  // todo
 }
 
 function measurementStartedDBOperation(object_id) {
@@ -375,12 +540,11 @@ function executePlannedMeasurementHandler(object_id, object_socket) {
   // })
 }
 
-function getObjectListHandler(ws) {
-  sqlcon.query(`SELECT obj.id, name, status, start_timestamp AS timestamp
-                      FROM objects AS obj LEFT JOIN measurements AS m ON obj.id = m.object_id 
-                      ORDER BY timestamp DESC`, (err, result) => {
+function getObjectsHandler(ws) {
+  sqlcon.query(`SELECT id, name, status
+                      FROM objects`, (err, result) => {
     if (err) throw err;
-    ws.send(JSON.stringify({ type: 'getObjectList', data: result }));
+    ws.send(JSON.stringify({ type: 'getObjects', data: result }));
   });
 }
 

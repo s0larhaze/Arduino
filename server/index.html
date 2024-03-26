@@ -8,20 +8,22 @@
   <body>
     <button type="" id="executePlannedMeasurementBtn">executePlannedMeasurement</button>
     <input type="" name="" value="" id="objectIdField">
-    <button type="" id="getObjectListBtn">getObjectList</button>
+    <button type="" id="getObjectsBtn">getObjects</button>
     <button type="" id="getObjectMeasurementDataBtn">getObjectMeasurementData</button>
     <button type="" id="startMockEmergencyBtn">startMockEmergency</button>
     <button type="" id="resetBtn">reset</button>
     <button type="" id="getCurrentObjectRegistrationSocketBtn">getCurrentObjectRegistrationSocket</button>
+    <button type="" id="getObjectDataBtn">getObjectData</button>
     <button type="">Stop</button>
     <script>
       const executePlannedMeasurementBtn = document.getElementById('executePlannedMeasurementBtn');
-      const getObjectListBtn = document.getElementById('getObjectListBtn');
+      const getObjectsBtn = document.getElementById('getObjectsBtn');
       const getObjectMeasurementDataBtn = document.getElementById('getObjectMeasurementDataBtn');
       const startMockEmergencyBtn = document.getElementById('startMockEmergencyBtn');
       const objectIdField = document.getElementById('objectIdField');
       const resetBtn = document.getElementById('resetBtn');
       const getCurrentObjectRegistrationSocketBtn = document.getElementById('getCurrentObjectRegistrationSocketBtn');
+      const getObjectDataBtn = document.getElementById('getObjectDataBtn');
       let socket;
 
       function initWebSocket() {
@@ -32,13 +34,14 @@
         });
 
         socket.addEventListener('message', (event) => {
+          console.log(event);
           let data = JSON.parse(event.data);
 
           switch (data.type){
             case "executePlannedMeasurement":
               console.log("", data.data);
               break;
-            case "getObjectList":
+            case "getObjects":
               console.log("", data.data);
               break;
             case "getObjectMeasurementData":
@@ -48,6 +51,9 @@
               console.log("", data.data);
               break;
             case "getCurrentObjectRegistrationSocket":
+              console.log("", data.data);
+              break;
+            case "getObjectData":
               console.log("", data.data);
               break;
             default:
@@ -72,8 +78,8 @@
         sendMessage('executePlannedMeasurement', { object_id: objectIdField.value });
       });
 
-      getObjectListBtn.addEventListener('click', () => {
-        sendMessage('getObjectList', 'All');
+      getObjectsBtn.addEventListener('click', () => {
+        sendMessage('getObjects', 'All');
       });
 
       getObjectMeasurementDataBtn.addEventListener('click', () => {
@@ -86,6 +92,10 @@
 
       resetBtn.addEventListener('click', () => {
         sendMessage('reset', { object_id: objectIdField.value });
+      });
+
+      getObjectDataBtn.addEventListener('click', () => {
+        sendMessage('getObjectData', { object_id: objectIdField.value });
       });
 
       initWebSocket(); // инициализация WebSocket при загрузке страницы
