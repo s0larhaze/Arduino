@@ -15,21 +15,26 @@ export default class ObjectItem {
     }
 
     async start() {
-        // Это для перерисоки
+        // Это для перерисовки
         if (this.self) this.self.remove();
         // Получаем данные
         this.data = await this.parent.handleQuery({type: 'getObjectData', name: this.id});
-        const current = this.data.current;
-        this.data = this.data.history.sort((a, b) => {return a.timestamp - b.timestamp});
-        this.reference = this.data.shift();
-        for (let i = this.data.length - 1; i > 0; i--) {
-            if (this.data[i].status === 1) {
-                this.lastMeasurement = this.data[i];
-                break;
+        // Если данных нет
+        if (this.data && this.data.history) {
+            const current = this.data.current || null;
+            this.data = this.data.history.sort((a, b) => {return a.timestamp - b.timestamp});
+            this.reference = this.data.shift();
+            for (let i = this.data.length - 1; i > 0; i--) {
+                if (this.data[i].status === 1) {
+                    this.lastMeasurement = this.data[i];
+                    break;
+                }
             }
+            this.data.unshift(this.reference); // Это элемент с самой ранней временной меткой. Предполагается, что это первое измерение и оно же эталон
+            if (current) this.data.unshift(current); // Это первый элемент, который существует только при тревоге
+        } else {
+            this.data = [];
         }
-        this.data.unshift(this.reference); // Это элемент с самой ранней временной меткой. Предполагается, что это первое измерение и оно же эталон
-        if (current) this.data.unshift(current); // Это первый элемент, который существует только при тревоге
 
 
         // Формируем страницу
@@ -162,12 +167,13 @@ export default class ObjectItem {
         if(!confirm("Вы уверены, что хотите очистить данные об этом объекте?")) return ;
         if(confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = this.parent.handleQuery({type: "clearData"});
-        if (result.status) {
-            this.start();
-        } else {
-            alert(`Очистить данные о проверке не удалось. Причина: ${result.reason}`);
-        }
+        this.parent.handleQuery({type: "clearData"});
+        // const result = this.parent.handleQuery({type: "clearData"});
+        // if (result.status) {
+        //     this.start();
+        // } else {
+        //     alert(`Очистить данные о проверке не удалось. Причина: ${result.reason}`);
+        // }
     }
 
     deleteObject() {

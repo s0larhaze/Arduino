@@ -73,6 +73,7 @@ const respons = {
 class App {
     constructor() {
         this.objectItems = [];
+        this.waitingObjects = [];
         this.objects = testObjs;
         this.start();
     }
@@ -83,43 +84,8 @@ class App {
         document.querySelector('body').appendChild(this.self);
 
         this.startSocet();
-        let testCount = 0;
-        // setInterval(() => {
-        //     console.log(`Test ${testCount++} start`);
-        //     let testObj = [];
-        //     this.objects.forEach((item, i) => {
-        //         testObj[i] = {...this.objects[i], status: Math.floor(Math.random() * 3)};
-        //     });
-        //
-        //     this.handleObjectsChanges(testObj);
-        //
-        // }, 10000);
-
-
-
-        // Открыть сокет
-        // this.startSocet();
-        // проверка изменений
-        // setInterval(() => {
-            // this.changed();
-        // }, 60000);
-        // const socket = io('http://147.45.101.134:3000', {transports: ['websocket']} );
-        // socket.on('getListOfObjectsRequest', (message) => {
-        //     console.log(message);
-        // });
-        // socket.on('getListOfObjectsResponse', (message) => {
-        //     console.log(message);
-        // });
-        // setInterval(() => {
-        //     console.log("getListOfObjectsRequest sended");
-        //     socket.emit('getListOfObjectsRequest');
-        // }, 1000);
-        // Вывести объекты (временно)
-
-
 
         this.printObjects(testObjs);
-        this.printAddObject();
     }
 
     handleObjectsChanges(newObjects) {
@@ -168,48 +134,94 @@ class App {
     }
 
     async startSocet() {
+        // Подключаем сокет
         const url = "ws://127.0.0.1:3000";
         this.socket = new WebSocket(url);
 
-        this.socket.onopen = function() {
+        // Если подключили - запрашиваем объекты
+        this.socket.onopen = () => {
             this.socket.send(JSON.stringify({type: "getObjects"}));
         };
 
-        this.socket.onclose = function(event) {
+        // Если закрыли - переподключаемся
+        this.socket.onclose = (event) => {
             if (event.wasClean) {
-                console.log('Соединение закрыто чисто');
+                console.log('Соединение закрыто чисто. Переподключимся через минуту.');
             } else {
-                alert('Обрыв соединения'); // например, "убит" процесс сервера
+                console.log('Обрыв соединения. Повторная попытка подключения через минуту.'); // например, "убит" процесс сервера
             }
+            setTimeout(() => {
+                this.startSocet();
+            }, 60000);
             console.log('Код: ' + event.code + ' причина: ' + event.reason);
         };
 
-        this.socket.onmessage = function(event) {
-            console.log("Получены данные " + event.data);
+        // Если произошла ошибка - переподключаемся
+        this.socket.onerror = (error) => {
+            console.log("Подключиться к серверу не удалось. Для повторной попытки подключения обновите страницу.");
+            console.log("Ошибка: " + event.error);
         };
 
-        this.socket.onerror = function(error) {
-            console.log("Ошибка " + error.message);
+        this.socket.onmessage = (event) => {
+            let data = JSON.parse(event.data);
+            switch (data.type) {
+                case "getObjects":
+                    this.objects = data.objects || [];
+                    this.printObjects(this.objects);
+                    break;
+                case "objectsChanges":
+                    let newObjects = event.data.objects || [];
+                    this.handleObjectsChanges(newObjects);
+                    break;
+                case "getObjectData":
+                    this.waitingObjects.forEach((item, i) => {
+                        if (item.name !== query.name) return;
+                        item.state = 1;
+                        item.respons = data.respons;
+                    });
+                    break;
+                case "objectDataChanges":
+                    if (this.objectItems[data.current.name]) {
+                        if (this.objectItems[data.current.name].self) {
+                            this.objectItems[obj.name].restart();
+                        }
+                    }
+                    break;
+                default:
+                    console.log("Неизвестный запрос");
+            }
         };
     }
 
     async handleQuery(query) {
+        if (this.socket.readyState !== 1) return ;
         switch (query.type) {
             case "getObjectData":
-                // Запрашиваем данные
-                return respons;
+                this.socket.send(JSON.stringify(query));
+                this.waitingObjects.push({name: query.name, respons: null, state: 0});
+                let respons = null;
+                const interval = setInterval(() => {
+                    this.waitingObjects.forEach((item, i) => {
+                        if (item.name !== query.name) return;
+                        if (item.state) {
+                            respons = item.respons;
+                        }
+                    });
+                    clearInterval(interval);
+                    return respons;
+                }, 10);
                 break;
             case "clearData":
-                // Запрашиваем очистку. Если что-то пошло не так - надо сообщить
-                return respons;
+                this.socket.send(JSON.stringify(query));
+                // return respons;
                 break;
             case "deleteObject":
-                // Запрашиваем удаление. Если что-то пошло не так - надо сообщить
-                return respons;
+                this.socket.send(JSON.stringify(query));
+                // return respons;
                 break;
             case "startChecking":
-                // Запрашиваем удаление. Если что-то пошло не так - надо сообщить
-                return respons;
+                this.socket.send(JSON.stringify(query));
+                // return respons;
                 break;
             default:
                 break;
@@ -395,15 +407,6 @@ class App {
             // Закидываем в список
             this.container.appendChild(objItem);
         });
-
-
-    }
-
-    printAddObject() {
-        this.addObject = document.createElement("DIV");
-        this.addObject.textContent = "Тут будет панель добавления объекта";
-        this.addObject.classList.add("addObject");
-        this.self.appendChild(this.addObject);
     }
 }
 
