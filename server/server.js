@@ -157,15 +157,10 @@ async function getObjectData(object_id, name, ws) {
     })
     .then(getEmergencyData, object_name)
     .then(emergencies => {
-      current = emergencies[0];
-      current['name'] = name;
-
-      for (let index = 1; index < emergencies.length; index++) {
-        history.push(emergencies[index]);
-      }
-
-      console.log("History");
-      console.log(history);
+        current = emergencies[0] || null;
+        for (let index = 1; index < emergencies.length; index++) {
+            history.push(emergencies[index]);
+        }
     })
     .then(getMeasurementsData, object_name)
     .then(measurements => {
@@ -173,11 +168,9 @@ async function getObjectData(object_id, name, ws) {
       for (let index = 0; index < measurements.length; index++) {
         history.push(measurements[index]);
       }
-
-      console.log("History");
-      console.log(history);
-
-      ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history } }));
+      (current)
+      ? ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: {'history': history } }))
+      : ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: { 'current': current, 'history': history } }));
     })
 }
 
@@ -203,7 +196,7 @@ function emergencyHandler(current, voltage, object_id, ws) {
 
   insertIntoEmergency = () => {
     return new Promise((resolve, reject) => {
-      sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values 
+      sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values
       (
         ${current},
         ${voltage},
@@ -296,7 +289,7 @@ function objectRegistrationHandler(object_id, ws) {
   }
 
   registerObject = () => {
-    sqlcon.query(`insert into objects (id, name, status) values 
+    sqlcon.query(`insert into objects (id, name, status) values
     (
       ${object_id},
       'Безымянный объект',
@@ -350,7 +343,7 @@ function resetHandler(object_id) {
 
       createObjectsTable = () => {
         return new Promise((resolve, reject) => {
-          sqlcon.query(`create table if not exists objects 
+          sqlcon.query(`create table if not exists objects
         (
         id int,
           name text,
@@ -364,9 +357,9 @@ function resetHandler(object_id) {
 
       createArchiveMeasurementsTable = () => {
         return new Promise((resolve, reject) => {
-          sqlcon.query(`create table if not exists measurements 
+          sqlcon.query(`create table if not exists measurements
           (
-            id int, 
+            id int,
             avg_current float,
             avg_voltage float,
             start_timestamp timestamp,
@@ -382,7 +375,7 @@ function resetHandler(object_id) {
 
       createArchiveEmergencyTable = () => {
         return new Promise((resolve, reject) => {
-          sqlcon.query(`create table if not exists emergency 
+          sqlcon.query(`create table if not exists emergency
           (
             id int,
             current float,voltage float,
@@ -490,7 +483,7 @@ function measurementStartedDBOperation(object_id) {
 
   insertRecordWithReferentialFlag = () => {
     console.log("Trying to insert with referential flag...");
-    sqlcon.query(`insert into measurements 
+    sqlcon.query(`insert into measurements
       (start_timestamp, object_id, isReferential) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 1)`, (err) => {
       if (err) throw err;
       console.log("Succesfully inserted.");
@@ -498,7 +491,7 @@ function measurementStartedDBOperation(object_id) {
   }
 
   insertRecord = () => {
-    sqlcon.query(`insert into measurements 
+    sqlcon.query(`insert into measurements
       (start_timestamp, object_id) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id})`, (err) => {
       if (err) throw err;
     })
@@ -517,7 +510,7 @@ function measurementStartedDBOperation(object_id) {
 }
 
 function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
-  sqlcon.query(`update measurements set 
+  sqlcon.query(`update measurements set
     avg_current = ${avg_current},
     avg_voltage = ${avg_voltage},
     end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}',
@@ -550,14 +543,14 @@ function getObjectsHandler(ws) {
 
 function arduinoMessageHandler(message) {
   measurementStartedDBOperation = (object_id) => {
-    sqlcon.query(`insert into measurements 
+    sqlcon.query(`insert into measurements
       (start_timestamp, object_id) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id})`, (err) => {
       if (err) throw err;
     })
   }
 
   measurementFinishedDBOperation = (avg_current, avg_voltage, object_id) => {
-    sqlcon.query(`update measurements set 
+    sqlcon.query(`update measurements set
       avg_current = ${avg_current},
       avg_voltage = ${avg_voltage},
       end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}'
@@ -567,7 +560,7 @@ function arduinoMessageHandler(message) {
   }
 
   emergencyHandlingDBOperation = (current, voltage, object_id) => {
-    sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values 
+    sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values
       (${current},
         ${voltage},
         '${moment().format('YYYY-MM-DD HH:mm:ss')}',
@@ -658,7 +651,7 @@ createTablesQuery = () => {
 
     createObjectsTable = () => {
       return new Promise((resolve, reject) => {
-        sqlcon.query(`create table if not exists objects 
+        sqlcon.query(`create table if not exists objects
         (
         id int primary key,
           name text,
@@ -672,9 +665,9 @@ createTablesQuery = () => {
 
     createMeasurementsTable = () => {
       return new Promise((resolve, reject) => {
-        sqlcon.query(`create table if not exists measurements 
+        sqlcon.query(`create table if not exists measurements
           (
-            id int auto_increment primary key, 
+            id int auto_increment primary key,
             avg_current float,
             avg_voltage float,
             start_timestamp timestamp,
@@ -690,7 +683,7 @@ createTablesQuery = () => {
 
     createEmergencyTable = () => {
       return new Promise((resolve, reject) => {
-        sqlcon.query(`create table if not exists emergency 
+        sqlcon.query(`create table if not exists emergency
           (
             id int auto_increment primary key,
             current float,voltage float,
