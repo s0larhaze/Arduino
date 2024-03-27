@@ -14,7 +14,8 @@ const app = express();
 const server = createServer(app);
 const wss = new WebSocket.Server({ server });
 
-var connectedObjects = new Map(); // not working, gotta find a better solution
+var connectedObjects = new Map();
+var connectedUsers = new Array();
 
 app.use(express.json());
 app.use("/socket", express.static('socket'))
@@ -25,13 +26,22 @@ app.use(cors({
 wss.on('connection', (ws) => {
   console.log("Connection!");
 
+  connectedUsers.push(ws);
+
   ws.on('message', (message) => {
     handleMessage(message, ws);
   })
 
   ws.on('close', () => {
     console.log('Connection closed!');
+    for (let index = 0; index < connectedUsers.length; index++) {
+      if (connectedUsers[index] === ws) {
+        connectedUsers.splice(index, 1);
+      }
+    }
   });
+
+  console.log(connectedUsers.length);
 })
 
 function getObjectSocket(object_id) {
@@ -117,7 +127,7 @@ function emergencyStoppedHandler() {
   // todo
 }
 
-async function getObjectData(object_id, name, ws) {
+function getObjectData(object_id, name, ws) {
   object_name = '';
   current = null;
   console.log(object_id);
@@ -157,10 +167,10 @@ async function getObjectData(object_id, name, ws) {
     })
     .then(getEmergencyData, object_name)
     .then(emergencies => {
-        current = emergencies[0] || null;
-        for (let index = 1; index < emergencies.length; index++) {
-            history.push(emergencies[index]);
-        }
+      current = emergencies[0] || null;
+      for (let index = 1; index < emergencies.length; index++) {
+        history.push(emergencies[index]);
+      }
     })
     .then(getMeasurementsData, object_name)
     .then(measurements => {
@@ -169,8 +179,8 @@ async function getObjectData(object_id, name, ws) {
         history.push(measurements[index]);
       }
       (current)
-      ? ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: {'history': history } }))
-      : ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: { 'current': current, 'history': history } }));
+        ? ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: { 'history': history } }))
+        : ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: { 'current': current, 'history': history } }));
     })
 }
 
