@@ -182,7 +182,7 @@ class App {
                     });
                     break;
                 case "objectDataChanges":
-                    if (this.objectItems[data.current.name]) {
+                    if (this.objectItems[data.name]) {
                         if (this.objectItems[data.current.name].self) {
                             this.objectItems[obj.name].restart();
                         }
