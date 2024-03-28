@@ -10,12 +10,13 @@ const { createServer } = require('node:http');
 const WebSocket = require('ws');
 const uuid = require('uuid');
 
-const app = express();
 const server = createServer(app);
+const app = express();
+
 const wss = new WebSocket.Server({ server });
 
-var connectedObjects = new Map();
-var connectedUsers = new Array();
+let connectedObjects = {};
+let connectedUsers = new Array();
 
 app.use(express.json());
 app.use("/socket", express.static('socket'))
@@ -23,52 +24,83 @@ app.use(cors({
   allowedHeaders: ['Content-Type']
 }))
 
-wss.on('connection', (ws) => {
+wss.on('connection', (socket) => {
   console.log("Connection!");
 
-  connectedUsers.push(ws);
+  socket.onmessage = message => {
+    handleMessage(message, socket);
+  }
 
-  ws.on('message', (message) => {
-    handleMessage(message, ws);
-  })
-
-  ws.on('close', () => {
+  socket.onclose = () => {
     console.log('Connection closed!');
     for (let index = 0; index < connectedUsers.length; index++) {
-      if (connectedUsers[index] === ws) {
+      if (connectedUsers[index] === socket) {
         connectedUsers.splice(index, 1);
       }
     }
-  });
+  };
 
   console.log(connectedUsers.length);
 })
 
-function getObjectSocket(object_id) {
-  keys = connectedObjects.keys();
-
-  for (let i = 0; i < keys.length; i++) {
-    if (keys[i].object_id === object_id)
-      return connectedObjects.values()[i];
-  }
-
-  return null;
+function userObjectRegistration(ws) {
+  connectedUsers.push(ws);
 }
 
-function getObjectIdByName(name) {
-  return new Promise((resolve, reject) => {
-    sqlcon.query(`select id as object_id from objects where name = '${name}'`, (err, result) => {
-      if (err) reject(err);
-      resolve(result[0].object_id);
+function objectRegistrationHandler(object_id, ws) {
+
+  if (!object_id) {
+    console.log("object_id cannot be empty, undefined or null");
+    return;
+  }
+
+  checkIfObjectPresentInDB()
+    .then(count => {
+      if (!count)
+        createObjectInDB();
+
+      connectedObjects[object_id] = ws;
+      console.log(connectedObjects.get(object_id));
     })
-  })
+    .catch(err => {
+      console.log("Cathed an error", err);
+    })
+
+  checkIfObjectPresentInDB = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select count (*) as count from objects where id = ${object_id}`, (err, result) => {
+        if (err) reject(err);
+        resolve(result[0].count);
+      });
+    })
+  }
+
+  createObjectInDB = () => {
+    sqlcon.query(`insert into objects (id, name, status) values
+    (
+      ${object_id},
+      'Безымянный объект',
+      0
+    )`, (err) => {
+      if (err) throw err;
+    })
+  }
 }
 
 function handleMessage(message, ws) {
-  let message_json = JSON.parse(message);
-  const type = message_json.type;
+  let message_json = null;
+  let type = null;
+  let data = null;
+  try {
+    message_json = JSON.parse(message);
+    type = message_json.type;
+    data = message_json.data;
+  } catch {
+    console.log("No reasonable message.");
+  }
 
   switch (type) {
+    // Adruino related message handling
     case 'arduinoStartedMeasurement':
       measurementStartedDBOperation(object_id);
       break;
@@ -83,6 +115,13 @@ function handleMessage(message, ws) {
       break;
     case 'arduinoObjectRegistration':
       objectRegistrationHandler(object_id, ws);
+      break;
+
+
+
+    // Adruino-unrelated message handling
+    case 'userObjectRegistration':
+      userObjectRegistration(object_id, ws);
       break;
     case 'getCurrentObjectRegistrationSocket':
       console.log(connectedObjects.get(object_id));
@@ -112,7 +151,7 @@ function handleMessage(message, ws) {
       break;
     case 'startMockEmergency':
       console.log(connectedObjects.keys());
-      object_socket = connectedObjects.get(object_id); // not working, gotta find a better solution
+      object_socket = connectedObjects[object_id];
       startMockEmergencyHandler(object_id, object_socket);
       break;
     case 'reset':
@@ -120,6 +159,136 @@ function handleMessage(message, ws) {
       break;
     default:
       console.log('Unknown message type:', type);
+  }
+}
+
+function measurementStartedDBOperation(object_id) {
+
+  if (!object_id) {
+    console.log("object_id cannot be empty");
+    return;
+  }
+
+  checkIfRecordsExist()
+    .then(count => {
+      if (!count) {
+        insertRecordWithReferentialFlag();
+      } else {
+        insertRecord();
+      }
+    }).catch(err => {
+      console.log(err);
+    })
+
+  checkIfRecordsExist = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
+        if (err) reject(err);
+        resolve(result[0].count);
+      })
+    })
+  }
+
+  insertRecordWithReferentialFlag = () => {
+    console.log("Trying to insert with referential flag...");
+    sqlcon.query(`insert into measurements
+      (start_timestamp, object_id, isReferential) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 1)`, (err) => {
+      if (err) throw err;
+      console.log("Succesfully inserted.");
+    })
+  }
+
+  insertRecord = () => {
+    sqlcon.query(`insert into measurements
+      (start_timestamp, object_id, isReferential) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 0)`, (err) => {
+      if (err) throw err;
+    })
+  }
+}
+
+function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
+  sqlcon.query(`update measurements set
+    avg_current = ${avg_current},
+    avg_voltage = ${avg_voltage},
+    end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}',
+    where object_id = ${object_id} and end_timestamp is NULL`, (err) => {
+    if (err) throw err;
+  })
+}
+
+function emergencyHandler(current, voltage, object_id, ws) {
+
+  let object_name = '';
+  let current = null;
+  let history = [];
+
+  insertIntoEmergency()
+    .then(getObjectName)
+    .then(dbObjectName => {
+      object_name = dbObjectName;
+    })
+    .then(getEmergencyData, object_name)
+    .then(emergencies => {
+      current = emergencies[0];
+
+      for (let index = 1; index < emergencies.length; index++) {
+        history.push(emergencies[index]);
+      }
+    })
+    .then(getMeasurementsData, object_name)
+    .then(measurements => {
+
+      for (let index = 0; index < measurements.length; index++) {
+        history.push(measurements[index]);
+      }
+
+      if (!current) {
+        ws.send(JSON.stringify({ type: 'objectDataChanges', data: { 'history': history } }));
+      } else {
+        ws.send(JSON.stringify({ type: 'objectDataChanges', data: { 'current': current, 'history': history } }));
+      }
+    })
+
+  insertIntoEmergency = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values
+      (
+        ${current},
+        ${voltage},
+        '${moment().format('YYYY-MM-DD HH:mm:ss')}',
+        ${object_id}
+      )`, err => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    })
+  }
+
+  getObjectName = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    });
+  }
+
+  getEmergencyData = (object_name) => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp desc;`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      });
+    })
+  }
+
+  getMeasurementsData = (object_name) => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      });
+    })
   }
 }
 
@@ -184,12 +353,6 @@ function getObjectData(object_id, name, ws) {
     })
 }
 
-function startMockEmergencyHandler(object_id, ws) {
-  wss.clients.forEach(elem => {
-    elem.send(JSON.stringify({ type: "startMockEmergency", data: object_id }));
-  })
-}
-
 function getObjectMeasurementDataHandler(object_id, ws) {
   if (object_id === '') {
     console.log("object_id cannot be empty");
@@ -202,126 +365,6 @@ function getObjectMeasurementDataHandler(object_id, ws) {
   });
 }
 
-function emergencyHandler(current, voltage, object_id, ws) {
-
-  insertIntoEmergency = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values
-      (
-        ${current},
-        ${voltage},
-        '${moment().format('YYYY-MM-DD HH:mm:ss')}',
-        ${object_id}
-      )`, err => {
-        if (err) reject(err);
-        resolve(result);
-      })
-    })
-  }
-
-  object_name = '';
-  current = null;
-  console.log(object_id);
-  history = [];
-
-  getObjectName = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
-        if (err) reject(err);
-        resolve(result);
-      })
-    });
-  }
-
-  getEmergencyData = (object_name) => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp desc;`, (err, result) => {
-        if (err) reject(err);
-        resolve(result);
-      });
-    })
-  }
-
-  getMeasurementsData = (object_name) => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
-        if (err) reject(err);
-        console.log(result);
-        resolve(result);
-      });
-    })
-  }
-
-  insertIntoEmergency()
-    .then(getObjectName)
-    .then(name_of_object => {
-      object_name = name_of_object;
-    })
-    .then(getEmergencyData, object_name)
-    .then(emergencies => {
-      current = emergencies[0];
-
-      for (let index = 1; index < emergencies.length; index++) {
-        history.push(emergencies[index]);
-      }
-
-      console.log("History");
-      console.log(history);
-    })
-    .then(getMeasurementsData, object_name)
-    .then(measurements => {
-
-      for (let index = 0; index < measurements.length; index++) {
-        history.push(measurements[index]);
-      }
-
-      console.log("History");
-      console.log(history);
-
-      ws.send(JSON.stringify({ type: 'objectDataChanges', data: { 'current': current, 'history': history } }));
-    })
-}
-
-function objectRegistrationHandler(object_id, ws) {
-
-  if (object_id === '' || object_id === undefined || object_id === null) {
-    console.log("object_id cannot be empty, undefined or null");
-    return;
-  }
-
-  checkIfObjectAlreadyRegistered = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select count (*) as count from objects where id = ${object_id}`, (err, result) => {
-        if (err) reject(err);
-        resolve(result[0].count);
-      });
-    })
-  }
-
-  registerObject = () => {
-    sqlcon.query(`insert into objects (id, name, status) values
-    (
-      ${object_id},
-      'Безымянный объект',
-      0
-    )`, (err) => {
-      if (err) throw err;
-    })
-  }
-
-  checkIfObjectAlreadyRegistered()
-    .then(count => {
-      if (count === 0) {
-        registerObject();
-      }
-      connectedObjects.set(object_id, ws)
-      console.log(connectedObjects.get(object_id))
-    })
-    .catch(err => {
-      console.log("Cathed an error");
-      console.log(err);
-    })
-}
 
 function resetHandler(object_id) {
 
@@ -475,60 +518,7 @@ function deleteObject() {
   // todo
 }
 
-function measurementStartedDBOperation(object_id) {
 
-  if (object_id === '') {
-    console.log("object_id cannot be empty");
-    return;
-  }
-
-  checkIfRecordsExist = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
-        if (err) reject(err);
-        resolve(result[0].count);
-      })
-    })
-  }
-
-  insertRecordWithReferentialFlag = () => {
-    console.log("Trying to insert with referential flag...");
-    sqlcon.query(`insert into measurements
-      (start_timestamp, object_id, isReferential) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 1)`, (err) => {
-      if (err) throw err;
-      console.log("Succesfully inserted.");
-    })
-  }
-
-  insertRecord = () => {
-    sqlcon.query(`insert into measurements
-      (start_timestamp, object_id) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id})`, (err) => {
-      if (err) throw err;
-    })
-  }
-
-  checkIfRecordsExist()
-    .then(count => {
-      if (count === 0) {
-        insertRecordWithReferentialFlag();
-      } else {
-        insertRecord();
-      }
-    }).catch(err => {
-      console.log(err);
-    })
-}
-
-function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
-  sqlcon.query(`update measurements set
-    avg_current = ${avg_current},
-    avg_voltage = ${avg_voltage},
-    end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}',
-    isReferential = 0
-    where object_id = ${object_id} and end_timestamp is NULL`, (err) => {
-    if (err) throw err;
-  })
-}
 
 function executePlannedMeasurementHandler(object_id, object_socket) {
   if (object_id === '') {
@@ -551,61 +541,13 @@ function getObjectsHandler(ws) {
   });
 }
 
-function arduinoMessageHandler(message) {
-  measurementStartedDBOperation = (object_id) => {
-    sqlcon.query(`insert into measurements
-      (start_timestamp, object_id) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id})`, (err) => {
-      if (err) throw err;
+function getObjectIdByName(name) {
+  return new Promise((resolve, reject) => {
+    sqlcon.query(`select id as object_id from objects where name = '${name}'`, (err, result) => {
+      if (err) reject(err);
+      resolve(result[0].object_id);
     })
-  }
-
-  measurementFinishedDBOperation = (avg_current, avg_voltage, object_id) => {
-    sqlcon.query(`update measurements set
-      avg_current = ${avg_current},
-      avg_voltage = ${avg_voltage},
-      end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}'
-      where object_id = ${object_id} and end_timestamp is NULL`, (err) => {
-      if (err) throw err;
-    })
-  }
-
-  emergencyHandlingDBOperation = (current, voltage, object_id) => {
-    sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values
-      (${current},
-        ${voltage},
-        '${moment().format('YYYY-MM-DD HH:mm:ss')}',
-        ${object_id})`, (err) => {
-      if (err) throw err;
-    })
-  }
-
-  try {
-    jsonMessage = JSON.parse(message);
-
-    switch (jsonMessage.message_type) {
-      case messageTypes.MESSAGE_STARTED_MEASURING:
-        measurementStartedDBOperation(jsonMessage.object_id);
-        console.log("Measurement insert operation is done!");
-        break;
-      case messageTypes.MESSAGE_FINISHED_MEASURING:
-        measurementFinishedDBOperation(jsonMessage.avg_current,
-          jsonMessage.avg_voltage,
-          jsonMessage.object_id);
-        console.log("Measurement update operation is done!");
-        break;
-      case messageTypes.MESSAGE_EMERGENCY:
-        emergencyHandlingDBOperation(jsonMessage.current,
-          jsonMessage.voltage,
-          jsonMessage.object_id)
-        console.log("Emergency insert operation is done!");
-        break;
-    }
-
-    console.log(jsonMessage);
-  }
-  catch (err) {
-    console.log("Failed to parse json of " + message);
-  }
+  })
 }
 
 // ENUMS
