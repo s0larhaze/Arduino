@@ -213,7 +213,7 @@ main {
     background-color: var(--grey);
 }
 
-.table_container tbody tr:first-child {
+.alarm {
     background-color: var(--red);
     color: #fff;
 }

@@ -24,18 +24,12 @@ export default class ObjectItem {
         // Если данных нет
         if (this.data && this.data.history) {
             const current = this.data.current || null;
+
             this.data = this.data.history.sort((a, b) => {return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()});
+
             this.reference = this.data.pop();
             this.reference.workingHours = (new Date(this.reference.timestamp).getTime() - new Date(this.reference.start_timestamp).getTime()) / 1000 / 60;
-            // for (let i = this.data.length - 1; i > 0; i--) {
-            //     if (this.data[i].status === 1) {
-            //         this.reference = this.data[i];
-            //         // Рассчет времени работы
-            //         this.reference.workingHours = new Date(this.reference.timestamp).getTime() - new Date(this.reference.start_timestamp).getTime();
-            //
-            //         break;
-            //     }
-            // }
+
             this.data.unshift(this.reference); // Это элемент с самой ранней временной меткой. Предполагается, что это первое измерение и оно же эталон
             if (current) this.data.unshift(current); // Это первый элемент, который существует только при тревоге
         } else {
@@ -94,9 +88,6 @@ export default class ObjectItem {
         this.changeName.classList.add("start_check");
         this.changeName.placeholder = "Имя";
         this.changeName.value = this.name;
-        this.changeName.addEventListener('click', (event) => {
-            this.clearData();
-        });
         // Кнопка изменения имени
         this.changeNameBut.textContent = "Изменить имя";
         this.changeNameBut.type = "button";
@@ -167,6 +158,8 @@ export default class ObjectItem {
         this.header.appendChild(this.back);
         this.header.appendChild(this.timer);
         this.header.appendChild(this.startCheck);
+        this.header.appendChild(this.changeName);
+        this.header.appendChild(this.changeNameBut);
         this.header.appendChild(this.clearBut);
         this.header.appendChild(this.deleteBut);
         this.header.appendChild(this.exportToExcelBut);
