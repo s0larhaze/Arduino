@@ -1,5 +1,6 @@
 import ObjectItem from "./components/objectItem.js";
-import { io } from "socket.io-client";
+import { io }     from "socket.io-client";
+
 import "../css/style.css";
 
 const testObjs = [
@@ -11,7 +12,6 @@ const testObjs = [
     { name: "Владимир база3", status: 2, timestamp: 1710564710615 },
     { name: "Владимир база4", status: 2, timestamp: 1710559029745 },
 ];
-
 const respons = {
     current: {
         name: "Воронеж база1",
@@ -72,10 +72,11 @@ const respons = {
 
 class App {
     constructor() {
-        this.objectItems = [];
         this.waitingObjects = [];
-        this.objects = testObjs;
-        this.responses = [];
+        this.objectItems    = [];
+        this.responses      = [];
+        this.objects        = testObjs;
+
         this.start();
     }
 
@@ -141,7 +142,7 @@ class App {
 
         // Если подключили - запрашиваем объекты
         this.socket.onopen = () => {
-            this.socket.send(JSON.stringify({ type: "getObjects" }));
+            this.socket.send(JSON.stringify({type: "userObjectRegistration", data: null}));
         };
 
         // Если закрыли - переподключаемся
@@ -149,7 +150,7 @@ class App {
             if (event.wasClean) {
                 console.log('Соединение закрыто чисто. Переподключимся через минуту.');
             } else {
-                console.log('Обрыв соединения. Повторная попытка подключения через минуту.'); // например, "убит" процесс сервера
+                alert('Обрыв соединения. Повторная попытка подключения через минуту.'); // например, "убит" процесс сервера
             }
             setTimeout(() => {
                 this.startSocet();
@@ -157,7 +158,7 @@ class App {
             console.log('Код: ' + event.code + ' причина: ' + event.reason);
         };
 
-        // Если произошла ошибка - переподключаемся
+        // Если произошла ошибка - просим переподключения
         this.socket.onerror = (error) => {
             console.log("Подключиться к серверу не удалось. Для повторной попытки подключения обновите страницу.");
             console.log("Ошибка: " + event.error);
@@ -195,39 +196,40 @@ class App {
     }
 
     async handleQuery(query) {
-    return new Promise((resolve, reject) => {
-        if (this.socket.readyState !== 1) {
-            reject(new Error('Socket is not ready.'));
-            return;
-        }
+        return new Promise((resolve, reject) => {
+            if (this.socket.readyState !== 1) {
+                reject(new Error('Socket is not ready.'));
+                return;
+            }
 
-        switch (query.type) {
-            case "getObjectData":
-                this.socket.send(JSON.stringify(query));
-                this.waitingObjects.push({ name: query.name, respons: null, state: 0 });
-                this.responses[query.name] = null;
-                const interval = setInterval(() => {
-                    this.waitingObjects.forEach((item, i) => {
-                        if (item.name !== query.name) return;
-                        if (item.state) {
-                            clearInterval(interval);
-                            console.log(item.respons);
-                            resolve(item.respons);
-                        }
-                    });
-                }, 10);
-                break;
-            case "clearData":
-            case "deleteObject":
-            case "startChecking":
-                this.socket.send(JSON.stringify(query));
-                resolve(); // Resolve без данных, так как эти запросы не возвращают результат.
-                break;
-            default:
-                reject(new Error('Unknown query type.'));
-        }
-    });
-}
+            switch (query.type) {
+                case "getObjectData":
+                    this.socket.send(JSON.stringify(query));
+                    this.waitingObjects.push({ name: query.name, respons: null, state: 0 });
+                    this.responses[query.name] = null;
+                    const interval = setInterval(() => {
+                        this.waitingObjects.forEach((item, i) => {
+                            if (item.name !== query.name) return;
+                            if (item.state) {
+                                clearInterval(interval);
+                                console.log(item.respons);
+                                resolve(item.respons);
+                            }
+                        });
+                    }, 10);
+                    break;
+                case "clearData":
+                case "deleteObject":
+                case "startChecking":
+                case "changeObjectName":
+                    this.socket.send(JSON.stringify(query));
+                    resolve(); // Resolve без данных, так как эти запросы не возвращают результат.
+                    break;
+                default:
+                    reject(new Error('Unknown query type.'));
+            }
+        });
+    }
 
 
     getTimeString(start, end) {

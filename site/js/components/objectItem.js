@@ -5,7 +5,7 @@ import objectExporter from "../libs/index.js";
 // deleteObject ожидает, что придет объект с полями: status bool и (reason при ошибке)
 export default class ObjectItem {
     constructor(name, status, parent, timestamp = null) {
-        this.id = name;
+        this.name = name;
         this.status = status;
         this.parent = parent;
         this.timestamp = timestamp;
@@ -18,7 +18,7 @@ export default class ObjectItem {
         // Это для перерисовки
         if (this.self) this.self.remove();
         // Получаем данные
-        this.data = await this.parent.handleQuery({ type: 'getObjectData', name: this.id, self: this });
+        this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}, self: this });
         // Если данных нет
         if (this.data && this.data.history) {
             const current = this.data.current || null;
@@ -47,6 +47,8 @@ export default class ObjectItem {
         this.main = document.createElement("MAIN");
         this.back = document.createElement("BUTTON");
         this.startCheck = document.createElement("BUTTON");
+        this.changeName = document.createElement("INPUT");
+        this.changeNameBut = document.createElement("BUTTON");
         this.clearBut = document.createElement("BUTTON");
         this.deleteBut = document.createElement("BUTTON");
         this.exportToExcelBut = document.createElement("BUTTON");
@@ -81,6 +83,23 @@ export default class ObjectItem {
         this.timer.textContent = "00:00:00";
         this.timer.classList.add("timer");
         this.startTimer();
+        // Поле с именем
+        this.changeName.type = "text";
+        this.changeName.name = "changeName";
+        this.changeName.classList.add("start_check");
+        this.changeName.placeholder = "Имя";
+        this.changeName.value = this.name;
+        this.changeName.addEventListener('click', (event) => {
+            this.clearData();
+        });
+        // Кнопка изменения имени
+        this.changeNameBut.textContent = "Изменить имя";
+        this.changeNameBut.type = "button";
+        this.changeNameBut.name = "changeNameBut";
+        this.changeNameBut.classList.add("start_check");
+        this.changeNameBut.addEventListener('click', (event) => {
+            this.changeObjectName();
+        });
         // Кнопка сброса данных
         this.clearBut.textContent = "Очистить данные";
         this.clearBut.type = "button";
@@ -163,26 +182,45 @@ export default class ObjectItem {
         this.self.appendChild(this.main);
     }
 
+    // События объекта
+    changeObjectName() {
+        const name = this.changeName.value;
+        if (name === this.name) {
+            alert("Имя не изменилось");
+            return ;
+        }
+        if (!confirm(`Вы уверены, что хотите изменить имя объекта ${this.name} на ${name}`)) return;
+        if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
+
+        const result = this.parent.handleQuery({ type: "changeObjectName", data: {name: this.name, new_name: name}});
+
+        if (result.status) {
+            this.name = name;
+            this.start();
+        } else {
+            alert(`Изменить имя не удалось. Причина: ${result.reason}`);
+        }
+    }
+
     clearData() {
         if (!confirm("Вы уверены, что хотите очистить данные об этом объекте?")) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        this.parent.handleQuery({ type: "clearData" });
-        // const result = this.parent.handleQuery({type: "clearData"});
-        // if (result.status) {
-        //     this.start();
-        // } else {
-        //     alert(`Очистить данные о проверке не удалось. Причина: ${result.reason}`);
-        // }
+        const result = this.parent.handleQuery({ type: "clearData", data: {name: this.name}});
+
+        if (result.status) {
+            this.start();
+        } else {
+            alert(`Очистить данные о проверке не удалось. Причина: ${result.reason}`);
+        }
     }
 
     deleteObject() {
         if (!confirm("Вы уверены, что хотите удалить данный объект?")) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        this.parent.handleQuery({ type: "deleteObject" });
+        const result = this.parent.handleQuery({ type: "deleteObject", data: {name: this.name}});
 
-        const result = this.parent.handleQuery({ type: "clearData" });
         if (result.status) {
             this.finish();
         } else {
@@ -222,17 +260,16 @@ export default class ObjectItem {
                     flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
                 },
             ],
-            fileName: `${this.id}_отчет${new Date().getTime()}`,
+            fileName: `${this.name}_отчет${new Date().getTime()}`,
         })
     }
 
     startChecking() {
+        if (!confirm("Вы уверены, что хотите начать проверку?")) return;
         // Блокируем кнопку начала проверки
         this.startCheck.disabled = true;
 
-        this.parent.handleQuery({ type: "startChecking" });
-
-        const result = this.parent.handleQuery({ type: "clearData" });
+        const result = this.parent.handleQuery({ type: "startChecking", data: {name: this.name} });
         if (result.status) {
             this.start();
         } else {
@@ -241,6 +278,7 @@ export default class ObjectItem {
         }
     }
 
+    // Утилитки
     finish() {
         this.self.remove();
     }
@@ -268,6 +306,7 @@ export default class ObjectItem {
         }, 1000);
     }
 
+    // Контентная часть
     setFilter(name, value) {
         if (name == 'year') {
             this.filter.year = value;
@@ -400,19 +439,19 @@ export default class ObjectItem {
         // Получаем данные
         // Начальное значение
         let yOption = document.createElement("OPTION");
-        yOption.textContent = "Выберите год";
-        yOption.value = null;
-        this.selectYear.appendChild(yOption);
+            yOption.textContent = "Выберите год";
+            yOption.value = null;
+            this.selectYear.appendChild(yOption);
 
         let mOption = document.createElement("OPTION");
-        mOption.textContent = "Выберите месяц";
-        mOption.value = null;
-        this.selectMonth.appendChild(mOption);
+            mOption.textContent = "Выберите месяц";
+            mOption.value = null;
+            this.selectMonth.appendChild(mOption);
 
         let dOption = document.createElement("OPTION");
-        dOption.textContent = "Выберите день";
-        dOption.value = null;
-        this.selectDay.appendChild(dOption);
+            dOption.textContent = "Выберите день";
+            dOption.value = null;
+            this.selectDay.appendChild(dOption);
 
         let ySet = new Set();
         let mSet = new Set();
@@ -502,7 +541,7 @@ export default class ObjectItem {
         const workingHours = document.createElement("TD");
         const status = document.createElement("TD");
 
-        th.textContent = this.id;
+        th.textContent = this.name;
         voltage.textContent = "Напряжение U(В)";
         current.textContent = "Сила тока I(A)";
         capacity.textContent = "Емкость C(А/ч)";
@@ -531,15 +570,15 @@ export default class ObjectItem {
 
         const tbody = document.createElement("TBODY");
         data.forEach((item, i) => {
-            const tr = document.createElement("TR");
-            const th = document.createElement("TH");
-            const voltage = document.createElement("TD");
-            const current = document.createElement("TD");
-            const capacity = document.createElement("TD");
-            const power = document.createElement("TD");
-            const degradation = document.createElement("TD");
             const workingHours = document.createElement("TD");
-            const status = document.createElement("TD");
+            const degradation  = document.createElement("TD");
+            const capacity     = document.createElement("TD");
+            const voltage      = document.createElement("TD");
+            const current      = document.createElement("TD");
+            const status       = document.createElement("TD");
+            const power        = document.createElement("TD");
+            const tr           = document.createElement("TR");
+            const th           = document.createElement("TH");
 
 
             let date = new Date(item.date);
