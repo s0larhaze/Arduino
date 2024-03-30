@@ -75,7 +75,7 @@ class App {
         this.waitingObjects = [];
         this.objectItems    = [];
         this.responses      = [];
-        this.objects        = testObjs;
+        this.objects        = [];
 
         this.start();
     }
@@ -84,7 +84,7 @@ class App {
         this.self = document.createElement("DIV");
         this.self.classList.add("mainWindow");
         document.querySelector('body').appendChild(this.self);
-
+        this.printObjects()
         this.startSocet();
 
         // this.printObjects(testObjs);
@@ -150,7 +150,7 @@ class App {
             if (event.wasClean) {
                 console.log('Соединение закрыто чисто. Переподключимся через минуту.');
             } else {
-                alert('Обрыв соединения. Повторная попытка подключения через минуту.'); // например, "убит" процесс сервера
+                console.log();('Обрыв соединения. Повторная попытка подключения через минуту.'); // например, "убит" процесс сервера
             }
             setTimeout(() => {
                 this.startSocet();
@@ -162,18 +162,19 @@ class App {
         this.socket.onerror = (error) => {
             console.log("Подключиться к серверу не удалось. Для повторной попытки подключения обновите страницу.");
             console.log("Ошибка: " + event.error);
+            this.printObjects({});
         };
 
         this.socket.onmessage = (event) => {
-            let data = JSON.parse(event.data);
-            switch (data.type) {
+            let message = JSON.parse(event.data);
+            switch (message.type) {
                 // Внутренние запросы
                 case "getObjects":
-                    this.objects = data.data || [];
-                    this.printObjects(this.objects);
+                    this.objects = message.data || [];
+                    this.printObjects();
                     break;
                 case "objectsChanges":
-                    let newObjects = event.data.objects || [];
+                    let newObjects = message.data.objects || [];
                     this.handleObjectsChanges(newObjects);
                     break;
                 case "objectDataChanges":
@@ -191,9 +192,9 @@ class App {
                 case "startChecking":
                 case "changeObjectName":
                     this.waitingObjects.forEach((item, i) => {
-                        if (item.name !== data.data.name) return;
+                        if (item.name !== message.data.name) return;
                         item.state = 1;
-                        item.respons = data.data;
+                        item.respons = message.data;
                     });
                     break;
                 default:
