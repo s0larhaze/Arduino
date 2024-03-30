@@ -157,7 +157,7 @@ function handleMessage(message, ws) {
       startMockEmergencyHandler(object_id, object_socket);
       break;
     case 'clearData':
-      clearData(object_id, ws);
+      clearData(data.id, data.name, ws);
       break;
     case 'deleteObject':
       deleteObject(data.id, data.name, ws);
@@ -392,7 +392,7 @@ function getObjectMeasurementDataHandler(object_id, ws) {
 }
 
 
-function clearData(object_id, ws) {
+function clearData(object_id, object_name, ws) {
 
   if (!object_id) {
     console.log("object_id cannot be empty");
@@ -535,17 +535,17 @@ function clearData(object_id, ws) {
     .then(resetMeasurementRecords)
     .then(resetEmergencyRecords)
     .then(() => {
-      ws.send(JSON.stringify({ type: 'clearData', data: { 'status': true } }));
+      if (ws)
+        ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': true } }));
     })
     .catch(err => {
       console.log(err);
-      ws.send(JSON.stringify({ type: 'clearData', data: { 'status': false, 'reason': err } }));
+      if (ws)
+        ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': false, 'reason': err } }));
     });
 }
 
 function deleteObject(object_id, object_name, ws) {
-
-  // clearData(object_id, ws);
 
   console.log("OBJECT_ID", object_id);
   console.log("OBJECT_IDTYPEOF", typeof object_id);
@@ -561,7 +561,7 @@ function deleteObject(object_id, object_name, ws) {
 
   deleteObjectFromDB = () => {
     return new Promise((resolve, reject) => {
-      sqlcon.query(`DELETE FROM objects WHERE id = ${object_id}`, (err, result) => {
+      sqlcon.query(`select * from objects`, (err, result) => {
         if (err) {
           ws.send(JSON.stringify({ type: 'deleteObject', data: { 'status': false, name: object_name, 'reason': err.message } }));
           throw err;
@@ -571,8 +571,9 @@ function deleteObject(object_id, object_name, ws) {
     })
   }
 
-  // useBatteryQuery()
-  //   .then(deleteObjectFromDB);
+  useBatteryQuery()
+    .then(deleteObjectFromDB)
+  // .then(clearData, object_id, ws);
 }
 
 function changeObjectName(object_name, new_name, ws) {
