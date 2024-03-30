@@ -230,11 +230,8 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
   let current = null;
   let history = [];
 
-  // chageObjectStatus = () => {
-  //   sqlcon.query(`update set status = 2 where id = ${object_id}`)
-  // }
-
-  insertIntoEmergency()
+  chageObjectStatus()
+    .then(insertIntoEmergency)
     .then(getObjectName)
     .then(dbObjectName => {
       object_name = dbObjectName;
@@ -302,6 +299,15 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
       });
     })
   }
+
+  chageObjectStatus = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`update set status = 2 where id = ${object_id}`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    })
+  }
 }
 
 function emergencyStoppedHandler(object_id) {
@@ -309,7 +315,7 @@ function emergencyStoppedHandler(object_id) {
     if (err) throw err;
 
     for (let i = 0; i < connectedUsers.length; i++) {
-      connectedUsers.send({ type: 'emergencyStopped', data: { id: object_id } });
+      connectedUsers.send(JSON.stringify({ type: 'emergencyStopped', data: { id: object_id } }));
     }
   })
 }
@@ -356,6 +362,7 @@ function getObjectData(object_id, name, ws) {
     .then(emergencies => {
       current = emergencies[0] || null;
       for (let index = 1; index < emergencies.length; index++) {
+        emergencies[index]['status'] = 2;
         history.push(emergencies[index]);
       }
     })
@@ -363,6 +370,7 @@ function getObjectData(object_id, name, ws) {
     .then(measurements => {
 
       for (let index = 0; index < measurements.length; index++) {
+        measurements[index]['status'] = 1;
         history.push(measurements[index]);
       }
       (current)
