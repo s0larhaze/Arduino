@@ -180,7 +180,7 @@ export default class ObjectItem {
     }
 
     // События объекта
-    changeObjectName() {
+    async changeObjectName() {
         const name = this.changeName.value;
         if (name === this.name) {
             alert("Имя не изменилось");
@@ -189,7 +189,7 @@ export default class ObjectItem {
         if (!confirm(`Вы уверены, что хотите изменить имя объекта ${this.name} на ${name}`)) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = this.parent.handleQuery({ type: "changeObjectName", data: {name: this.name, new_name: name, id: this.id}});
+        const result = await this.parent.handleQuery({ type: "changeObjectName", data: {name: this.name, new_name: name, id: this.id}});
 
         if (result.status) {
             this.name = name;
@@ -199,11 +199,11 @@ export default class ObjectItem {
         }
     }
 
-    clearData() {
+    async clearData() {
         if (!confirm("Вы уверены, что хотите очистить данные об этом объекте?")) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = this.parent.handleQuery({ type: "clearData", data: {name: this.name, id: this.id}});
+        const result = await this.parent.handleQuery({ type: "clearData", data: {name: this.name, id: this.id}});
 
         if (result.status) {
             this.start();
@@ -212,11 +212,11 @@ export default class ObjectItem {
         }
     }
 
-    deleteObject() {
+    async deleteObject() {
         if (!confirm("Вы уверены, что хотите удалить данный объект?")) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = this.parent.handleQuery({ type: "deleteObject", data: {name: this.name, id: this.id}});
+        const result = await this.parent.handleQuery({ type: "deleteObject", data: {name: this.name, id: this.id}});
 
         if (result.status) {
             this.finish();
@@ -261,12 +261,12 @@ export default class ObjectItem {
         })
     }
 
-    startChecking() {
+    async startChecking() {
         if (!confirm("Вы уверены, что хотите начать проверку?")) return;
         // Блокируем кнопку начала проверки
         this.startCheck.disabled = true;
 
-        const result = this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
+        const result = await this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
         if (result.status) {
             this.start();
         } else {

@@ -190,7 +190,6 @@ class App {
                 case "getObjectData":
                 case "startChecking":
                 case "changeObjectName":
-                console.log(message);
                     this.waitingObjects.forEach((item, i) => {
                         if (item.name !== message.data.name) return;
                         item.state = 1;
@@ -219,7 +218,6 @@ class App {
                     this.socket.send(JSON.stringify(query));
 
                     this.waitingObjects.push({ name: query.data.name, respons: null, state: 0 });
-
                     this.responses[query.name] = null;
                     const interval = setInterval(() => {
                         this.waitingObjects.forEach((item, i) => {
@@ -227,6 +225,7 @@ class App {
                             if (item.state) {
                                 clearInterval(interval);
                                 resolve(item.respons);
+                                this.waitingObjects.pop(i);
                             }
                         });
                     }, 10);
