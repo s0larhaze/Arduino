@@ -429,6 +429,7 @@ function clearData(object_id, object_name, ws) {
           status tinyint
         )`, (err, result) => {
             if (err) reject(err);
+            console.log("CREATEOBJECTSTABLE WORKED WELL");
             resolve(result);
           })
         })
@@ -480,20 +481,6 @@ function clearData(object_id, object_name, ws) {
     });
   };
 
-  createArchiveDBQuery()
-    .then(useArchiveBatteryQuery)
-    .then(createArchiveTablesQuery)
-    .then(() => {
-      console.log("Archive DB is ready...");
-    })
-    .then(useBatteryQuery)
-    .then(result => {
-      console.log("REUSLT ", result);
-    })
-    .catch((err) => {
-      console.log(err);
-    });
-
   dumpMeasurementRecords = () => {
     return new Promise((resolve, reject) => {
       sqlcon.query(`insert into archive_battery.measurements select * from battery.measurements where object_id = ${object_id}`, (err, result) => {
@@ -530,19 +517,33 @@ function clearData(object_id, object_name, ws) {
     })
   }
 
-  dumpMeasurementRecords()
-    .then(dumpEmergencyRecords)
-    .then(resetMeasurementRecords)
-    .then(resetEmergencyRecords)
-    .then(() => {
-      if (ws)
-        ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': true } }));
-    })
-    .catch(err => {
-      console.log(err);
-      if (ws)
-        ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': false, 'reason': err } }));
-    });
+  return new Promise((resolve, reject) => {
+    createArchiveDBQuery()
+      .then(useArchiveBatteryQuery)
+      .then(createArchiveTablesQuery)
+      .then(() => {
+        console.log("Archive DB is ready...");
+      })
+      .then(useBatteryQuery)
+      .then(result => {
+        console.log("REUSLT ", result);
+      })
+      .then(dumpMeasurementRecords)
+      .then(dumpEmergencyRecords)
+      .then(resetMeasurementRecords)
+      .then(resetEmergencyRecords)
+      .then(resetEmergencyRecords)
+      .then(() => {
+        if (ws)
+          ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': true } }));
+        resolve("OK");
+      })
+      .catch(err => {
+        console.log(err);
+        if (ws)
+          ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': false, 'reason': err } }));
+      });
+  })
 }
 
 function deleteObject(object_id, object_name, ws) {
@@ -561,7 +562,7 @@ function deleteObject(object_id, object_name, ws) {
 
   deleteObjectFromDB = () => {
     return new Promise((resolve, reject) => {
-      sqlcon.query(`select * from objects`, (err, result) => {
+      sqlcon.query(`DELETE FROM objects WHERE id = ${object_id}`, (err, result) => {
         if (err) {
           ws.send(JSON.stringify({ type: 'deleteObject', data: { 'status': false, name: object_name, 'reason': err.message } }));
           throw err;
@@ -572,8 +573,10 @@ function deleteObject(object_id, object_name, ws) {
   }
 
   useBatteryQuery()
-    .then(deleteObjectFromDB)
-  // .then(clearData, object_id, ws);
+    .then(() => {
+      clearData(object_id, object_name, ws);
+    })
+    .then(deleteObjectFromDB);
 }
 
 function changeObjectName(object_name, new_name, ws) {
