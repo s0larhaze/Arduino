@@ -10,8 +10,8 @@ const { createServer } = require('node:http');
 const WebSocket = require('ws');
 const uuid = require('uuid');
 
-const server = createServer(app);
 const app = express();
+const server = createServer(app);
 
 const wss = new WebSocket.Server({ server });
 
@@ -27,9 +27,9 @@ app.use(cors({
 wss.on('connection', (socket) => {
   console.log("Connection!");
 
-  socket.onmessage = message => {
+  socket.on('message', message => {
     handleMessage(message, socket);
-  }
+  });
 
   socket.onclose = () => {
     console.log('Connection closed!');
@@ -45,6 +45,7 @@ wss.on('connection', (socket) => {
 
 function userObjectRegistration(ws) {
   connectedUsers.push(ws);
+  getObjectsHandler(ws);
 }
 
 function objectRegistrationHandler(object_id, ws) {
@@ -93,6 +94,7 @@ function handleMessage(message, ws) {
   let data = null;
   try {
     message_json = JSON.parse(message);
+    console.log("MESSAGE_JSON", message_json);
     type = message_json.type;
     data = message_json.data;
   } catch {
@@ -121,7 +123,7 @@ function handleMessage(message, ws) {
 
     // Adruino-unrelated message handling
     case 'userObjectRegistration':
-      userObjectRegistration(object_id, ws);
+      userObjectRegistration(ws);
       break;
     case 'getCurrentObjectRegistrationSocket':
       console.log(connectedObjects.get(object_id));
@@ -141,7 +143,7 @@ function handleMessage(message, ws) {
       getObjectMeasurementDataHandler(object_id, ws);
       break;
     case 'getObjectData':
-      let name = message_json.name;
+      let name = data.name;
       getObjectIdByName(name)
         .then((result) => {
           object_id = result;
@@ -154,8 +156,14 @@ function handleMessage(message, ws) {
       object_socket = connectedObjects[object_id];
       startMockEmergencyHandler(object_id, object_socket);
       break;
-    case 'reset':
-      resetHandler(object_id);
+    case 'clearData':
+      clearData(object_id);
+      break;
+    case 'deleteObject':
+      deleteObject(object_id);
+      break;
+    case 'changeObjectName':
+      changeObjectName(object_id);
       break;
     default:
       console.log('Unknown message type:', type);
@@ -216,7 +224,7 @@ function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
   })
 }
 
-function emergencyHandler(current, voltage, object_id, ws) {
+function emergencyHandler(amperage, voltage, object_id, ws) {
 
   let object_name = '';
   let current = null;
@@ -229,7 +237,7 @@ function emergencyHandler(current, voltage, object_id, ws) {
     })
     .then(getEmergencyData, object_name)
     .then(emergencies => {
-      current = emergencies[0];
+      latest = emergencies[0];
 
       for (let index = 1; index < emergencies.length; index++) {
         history.push(emergencies[index]);
@@ -348,8 +356,8 @@ function getObjectData(object_id, name, ws) {
         history.push(measurements[index]);
       }
       (current)
-        ? ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: { 'history': history } }))
-        : ws.send(JSON.stringify({ type: 'getObjectData', name: object_name[0], data: { 'current': current, 'history': history } }));
+        ? ws.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history, name: object_name[0], id: object_id } }))
+        : ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history, name: object_name[0], id: object_id } }));
     })
 }
 
@@ -366,9 +374,9 @@ function getObjectMeasurementDataHandler(object_id, ws) {
 }
 
 
-function resetHandler(object_id) {
+function clearData(object_id) {
 
-  if (object_id === '') {
+  if (!object_id) {
     console.log("object_id cannot be empty");
     return;
   }
@@ -506,22 +514,46 @@ function resetHandler(object_id) {
     .then(resetMeasurementRecords)
     .then(resetEmergencyRecords)
     .then(() => {
-      ws.send('clearData', { status: "true" });
+      ws.send(JSON.stringify({ type: 'clearData', data: { 'status': true } }));
     })
     .catch(err => {
       console.log(err);
-      ws.send('clearData', { status: "false" });
+      ws.send(JSON.stringify({ type: 'clearData', data: { 'status': false, 'reason': err } }));
     });
 }
 
-function deleteObject() {
-  // todo
+function deleteObject(object_id, ws) {
+
+  deleteObjectFromDB = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`delete from objects where id = ${object_id}`, (err, result) => {
+        if (err) {
+          ws.send(JSON.stringify({ type: 'deleteObject', data: { 'status': false, 'reason': err.message } }));
+          throw err;
+        }
+        ws.send(JSON.stringify({ type: 'deleteObject', data: { 'status': true } }));
+      })
+    })
+  }
+
+  deleteObjectFromDB
+    .then
+
+}
+
+function changeObjectName(object_name, new_name, ws) {
+  sqlcon.query(`update set name = ${new_name} where name = ${object_name}`, (err, result) => {
+    if (err) {
+      ws.send(JSON.stringify({ type: 'changeObjectName', data: { 'status': false, 'reason': err.message } }));
+      throw err;
+    }
+    ws.send(JSON.stringify({ type: 'changeObjectName', data: { 'status': true } }));
+  })
 }
 
 
-
 function executePlannedMeasurementHandler(object_id, object_socket) {
-  if (object_id === '') {
+  if (!object_id) {
     console.log("object_id cannot be empty");
     return;
   }
