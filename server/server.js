@@ -157,10 +157,10 @@ function handleMessage(message, ws) {
       startMockEmergencyHandler(object_id, object_socket);
       break;
     case 'clearData':
-      clearData(object_id);
+      clearData(object_id, ws);
       break;
     case 'deleteObject':
-      deleteObject(object_id);
+      deleteObject(data.id, data.name, ws);
       break;
     case 'changeObjectName':
       changeObjectName(object_id);
@@ -392,7 +392,7 @@ function getObjectMeasurementDataHandler(object_id, ws) {
 }
 
 
-function clearData(object_id) {
+function clearData(object_id, ws) {
 
   if (!object_id) {
     console.log("object_id cannot be empty");
@@ -467,7 +467,7 @@ function clearData(object_id) {
         })
       }
 
-      createArchiveObjectsTable()
+      createObjectsTable()
         .then(createMeasurementsTable)
         .then(createEmergencyTable)
         .then(() => {
@@ -480,13 +480,16 @@ function clearData(object_id) {
     });
   };
 
-  createArchiveDBQuery
+  createArchiveDBQuery()
     .then(useArchiveBatteryQuery)
     .then(createArchiveTablesQuery)
     .then(() => {
       console.log("Archive DB is ready...");
     })
     .then(useBatteryQuery)
+    .then(result => {
+      console.log("REUSLT ", result);
+    })
     .catch((err) => {
       console.log(err);
     });
@@ -540,21 +543,35 @@ function clearData(object_id) {
     });
 }
 
-function deleteObject(object_id, ws) {
+function deleteObject(object_id, object_name, ws) {
+
+  // clearData(object_id, ws);
+
+  console.log("OBJECT_ID", object_id);
+  console.log("OBJECT_IDTYPEOF", typeof object_id);
+
+  useBatteryQuery = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`use battery`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    });
+  }
 
   deleteObjectFromDB = () => {
     return new Promise((resolve, reject) => {
-      sqlcon.query(`delete from objects where id = ${object_id}`, (err, result) => {
+      sqlcon.query(`DELETE FROM objects WHERE id = ${object_id}`, (err, result) => {
         if (err) {
-          ws.send(JSON.stringify({ type: 'deleteObject', data: { 'status': false, 'reason': err.message } }));
+          ws.send(JSON.stringify({ type: 'deleteObject', data: { 'status': false, name: object_name, 'reason': err.message } }));
           throw err;
         }
-        ws.send(JSON.stringify({ type: 'deleteObject', data: { 'status': true } }));
+        ws.send(JSON.stringify({ type: 'deleteObject', data: { name: object_name, 'status': true } }));
       })
     })
   }
 
-  clearData(object_id)
+  useBatteryQuery()
     .then(deleteObjectFromDB);
 }
 
