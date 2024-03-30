@@ -230,6 +230,10 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
   let current = null;
   let history = [];
 
+  // chageObjectStatus = () => {
+  //   sqlcon.query(`update set status = 2 where id = ${object_id}`)
+  // }
+
   insertIntoEmergency()
     .then(getObjectName)
     .then(dbObjectName => {
@@ -300,8 +304,14 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
   }
 }
 
-function emergencyStoppedHandler() {
-  // todo
+function emergencyStoppedHandler(object_id) {
+  sqlcon.query(`update set status = 0 where id = ${object_id}`, (err, result) => {
+    if (err) throw err;
+
+    for (let i = 0; i < connectedUsers.length; i++) {
+      connectedUsers.send({ type: 'emergencyStopped', data: { id: object_id } });
+    }
+  })
 }
 
 function getObjectData(object_id, name, ws) {
@@ -356,8 +366,8 @@ function getObjectData(object_id, name, ws) {
         history.push(measurements[index]);
       }
       (current)
-        ? ws.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history, name: object_name[0], id: object_id } }))
-        : ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history, name: object_name[0], id: object_id } }));
+        ? ws.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history.length === 0 ? null : history, name: object_name[0], id: object_id } }))
+        : ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history.length === 0 ? null : history, name: object_name[0], id: object_id } }));
     })
 }
 
