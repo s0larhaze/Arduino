@@ -18,7 +18,8 @@ export default class ObjectItem {
         // Это для перерисовки
         if (this.self) this.self.remove();
         // Получаем данные
-        this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}, self: this });
+        this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}});
+        this.id = this.data.id;
         // Если данных нет
         if (this.data && this.data.history) {
             const current = this.data.current || null;
@@ -192,7 +193,7 @@ export default class ObjectItem {
         if (!confirm(`Вы уверены, что хотите изменить имя объекта ${this.name} на ${name}`)) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = this.parent.handleQuery({ type: "changeObjectName", data: {name: this.name, new_name: name}});
+        const result = this.parent.handleQuery({ type: "changeObjectName", data: {name: this.name, new_name: name, id: this.id}});
 
         if (result.status) {
             this.name = name;
@@ -206,7 +207,7 @@ export default class ObjectItem {
         if (!confirm("Вы уверены, что хотите очистить данные об этом объекте?")) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = this.parent.handleQuery({ type: "clearData", data: {name: this.name}});
+        const result = this.parent.handleQuery({ type: "clearData", data: {name: this.name, id: this.id}});
 
         if (result.status) {
             this.start();
@@ -219,7 +220,7 @@ export default class ObjectItem {
         if (!confirm("Вы уверены, что хотите удалить данный объект?")) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = this.parent.handleQuery({ type: "deleteObject", data: {name: this.name}});
+        const result = this.parent.handleQuery({ type: "deleteObject", data: {name: this.name, id: this.id}});
 
         if (result.status) {
             this.finish();
@@ -269,7 +270,7 @@ export default class ObjectItem {
         // Блокируем кнопку начала проверки
         this.startCheck.disabled = true;
 
-        const result = this.parent.handleQuery({ type: "startChecking", data: {name: this.name} });
+        const result = this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
         if (result.status) {
             this.start();
         } else {

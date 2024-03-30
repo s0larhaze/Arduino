@@ -167,6 +167,7 @@ class App {
         this.socket.onmessage = (event) => {
             let data = JSON.parse(event.data);
             switch (data.type) {
+                // Внутренние запросы
                 case "getObjects":
                     this.objects = data.data || [];
                     this.printObjects(this.objects);
@@ -175,19 +176,25 @@ class App {
                     let newObjects = event.data.objects || [];
                     this.handleObjectsChanges(newObjects);
                     break;
-                case "getObjectData":
-                    this.waitingObjects.forEach((item, i) => {
-                        if (item.name !== data.data.current.name) return;
-                        item.state = 1;
-                        item.respons = data.data;
-                    });
-                    break;
                 case "objectDataChanges":
                     if (this.objectItems[data.name]) {
                         if (this.objectItems[data.current.name].self) {
                             this.objectItems[obj.name].restart();
                         }
                     }
+                    break;
+
+                // Внешние запросы
+                case "clearData":
+                case "deleteObject":
+                case "getObjectData":
+                case "startChecking":
+                case "changeObjectName":
+                    this.waitingObjects.forEach((item, i) => {
+                        if (item.name !== data.data.name) return;
+                        item.state = 1;
+                        item.respons = data.data;
+                    });
                     break;
                 default:
                     console.log("Неизвестный запрос");
@@ -203,9 +210,15 @@ class App {
             }
 
             switch (query.type) {
+                case "clearData":
+                case "deleteObject":
                 case "getObjectData":
+                case "startChecking":
+                case "changeObjectName":
                     this.socket.send(JSON.stringify(query));
+
                     this.waitingObjects.push({ name: query.name, respons: null, state: 0 });
+
                     this.responses[query.name] = null;
                     const interval = setInterval(() => {
                         this.waitingObjects.forEach((item, i) => {
@@ -217,13 +230,6 @@ class App {
                             }
                         });
                     }, 10);
-                    break;
-                case "clearData":
-                case "deleteObject":
-                case "startChecking":
-                case "changeObjectName":
-                    this.socket.send(JSON.stringify(query));
-                    resolve(); // Resolve без данных, так как эти запросы не возвращают результат.
                     break;
                 default:
                     reject(new Error('Unknown query type.'));
