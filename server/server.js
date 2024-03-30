@@ -284,7 +284,7 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
 
   getEmergencyData = (object_name) => {
     return new Promise((resolve, reject) => {
-      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp desc;`, (err, result) => {
+      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp asc;`, (err, result) => {
         if (err) reject(err);
         resolve(result);
       });
@@ -337,7 +337,7 @@ function getObjectData(object_id, name, ws) {
 
   getEmergencyData = (object_name) => {
     return new Promise((resolve, reject) => {
-      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp desc;`, (err, result) => {
+      sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp asc;`, (err, result) => {
         if (err) reject(err);
         resolve(result);
       });
@@ -554,9 +554,8 @@ function deleteObject(object_id, ws) {
     })
   }
 
-  deleteObjectFromDB
-    .then
-
+  clearData(object_id)
+    .then(deleteObjectFromDB);
 }
 
 function changeObjectName(object_name, new_name, ws) {
