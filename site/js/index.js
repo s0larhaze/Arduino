@@ -192,7 +192,7 @@ class App {
                 case "startChecking":
                 case "changeObjectName":
                     this.waitingObjects.forEach((item, i) => {
-                        if (item.name !== message.data.name.name) return;
+                        if (item.name !== message.data.name) return;
                         item.state = 1;
                         item.respons = message.data;
                     });
