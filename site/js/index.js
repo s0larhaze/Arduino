@@ -226,7 +226,6 @@ class App {
                             if (item.name !== query.data.name) return;
                             if (item.state) {
                                 clearInterval(interval);
-                                console.log(item.respons);
                                 resolve(item.respons);
                             }
                         });

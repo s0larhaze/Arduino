@@ -26,6 +26,7 @@ export default class ObjectItem {
             this.data = this.data.history.sort((a, b) => { return a.timestamp - b.timestamp });
             this.reference = this.data.shift();
             for (let i = this.data.length - 1; i > 0; i--) {
+                console.log(this.data[i]);
                 if (this.data[i].status === 1) {
                     this.lastMeasurement = this.data[i];
                     break;
@@ -301,7 +302,6 @@ export default class ObjectItem {
 
         setInterval(() => {
             const date = new Date().getTime();
-
             this.timer.textContent = this.getTimeString(this.timestamp, date);
         }, 1000);
     }
@@ -332,7 +332,7 @@ export default class ObjectItem {
         if (this.filter.year != "null") {
             // Получаем месяцы и дни этого года
             this.data.forEach(item => {
-                const date = new Date(item.date);
+                const date = new Date(item.timestamp);
 
                 if (date.getFullYear() == this.filter.year) {
                     filteredData.push(item); // Добавляем элемент
@@ -346,7 +346,7 @@ export default class ObjectItem {
         // Если год не выбран - отображаем все месяцы
         if (!months.size) {
             this.data.forEach(item => {
-                let date = new Date(item.date);
+                let date = new Date(item.timestamp);
                 months.add(date.getMonth());
             });
         }
@@ -377,7 +377,7 @@ export default class ObjectItem {
             if (!filteredData.length) filteredData = this.data;
 
             filteredData.forEach(item => {
-                const date = new Date(item.date);
+                const date = new Date(item.timestamp);
 
                 if (date.getMonth() == this.filter.month) {
                     temp.push(item); // Добавляем элемент
@@ -394,7 +394,7 @@ export default class ObjectItem {
         // Если месяц не выбран - отображаем все дни
         if (!days.size) {
             this.data.forEach(item => {
-                let date = new Date(item.date);
+                let date = new Date(item.timestamp);
                 days.add(date.getDay());
             });
         }
@@ -419,7 +419,7 @@ export default class ObjectItem {
         // День
         if (this.filter.day != "null") {
             filteredData.forEach(item => {
-                const date = new Date(item.date);
+                const date = new Date(item.timestamp);
 
                 if (date.getDay() == this.filter.day) {
                     temp.push(item);
@@ -458,7 +458,7 @@ export default class ObjectItem {
         let dSet = new Set();
 
         this.data.forEach(item => {
-            let date = new Date(item.date);
+            let date = new Date(item.timestamp);
 
             ySet.add(date.getFullYear());
             mSet.add(date.getMonth());
@@ -580,8 +580,7 @@ export default class ObjectItem {
             const tr           = document.createElement("TR");
             const th           = document.createElement("TH");
 
-
-            let date = new Date(item.date);
+            let date = new Date(item.timestamp);
             date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
 
             th.textContent = `${date}`
@@ -600,6 +599,7 @@ export default class ObjectItem {
             // Рассчет времени работы
 
             let workingHoursDuration = item.workingHours;
+            console.log(this.lastMeasurement);
             if (item.status === 2) {
                 workingHoursDuration = (this.lastMeasurement.current * this.lastMeasurement.workingHours) / item.current;
             }
