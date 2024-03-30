@@ -226,6 +226,8 @@ class App {
                                 clearInterval(interval);
                                 resolve(item.respons);
                                 this.waitingObjects.pop(i);
+                                let tmp = document.querySelector(`#${item.name}`);
+                                if (tmp) tmp.remove();
                             }
                         });
                     }, 10);
