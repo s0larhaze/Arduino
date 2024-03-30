@@ -571,8 +571,8 @@ function deleteObject(object_id, object_name, ws) {
     })
   }
 
-  useBatteryQuery()
-    .then(deleteObjectFromDB);
+  // useBatteryQuery()
+  //   .then(deleteObjectFromDB);
 }
 
 function changeObjectName(object_name, new_name, ws) {
