@@ -19,19 +19,23 @@ export default class ObjectItem {
         if (this.self) this.self.remove();
         // Получаем данные
         this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}});
+        console.log();
         this.id = this.data.id;
         // Если данных нет
         if (this.data && this.data.history) {
             const current = this.data.current || null;
-            this.data = this.data.history.sort((a, b) => { return a.timestamp - b.timestamp });
-            this.reference = this.data.shift();
-            for (let i = this.data.length - 1; i > 0; i--) {
-                console.log(this.data[i]);
-                if (this.data[i].status === 1) {
-                    this.lastMeasurement = this.data[i];
-                    break;
-                }
-            }
+            this.data = this.data.history.sort((a, b) => {return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()});
+            this.reference = this.data.pop();
+            this.reference.workingHours = (new Date(this.reference.timestamp).getTime() - new Date(this.reference.start_timestamp).getTime()) / 1000 / 60;
+            // for (let i = this.data.length - 1; i > 0; i--) {
+            //     if (this.data[i].status === 1) {
+            //         this.reference = this.data[i];
+            //         // Рассчет времени работы
+            //         this.reference.workingHours = new Date(this.reference.timestamp).getTime() - new Date(this.reference.start_timestamp).getTime();
+            //
+            //         break;
+            //     }
+            // }
             this.data.unshift(this.reference); // Это элемент с самой ранней временной меткой. Предполагается, что это первое измерение и оно же эталон
             if (current) this.data.unshift(current); // Это первый элемент, который существует только при тревоге
         } else {
@@ -580,6 +584,10 @@ export default class ObjectItem {
             const tr           = document.createElement("TR");
             const th           = document.createElement("TH");
 
+            if (item.status === 1) {
+                item.workingHours = (new Date(item.timestamp).getTime() - new Date(item.start_timestamp).getTime()) / 1000 / 60;
+            }
+
             let date = new Date(item.timestamp);
             date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
 
@@ -588,9 +596,11 @@ export default class ObjectItem {
             current.textContent = `${item.current}`;
             capacity.textContent = (item.workingHours) ? `${(item.current * item.workingHours / 60).toFixed(2)}` : '-';
             power.textContent = `${item.voltage * item.current}`;
+
             // Расчет деградации
             let degradationInPercent = '-';
             if (item.workingHours) {
+                console.log(this.reference);
                 let c1 = (item.current * item.workingHours / 60);
                 let c2 = (this.reference.current * this.reference.workingHours / 60);
                 degradationInPercent = `${(c1 / c2).toFixed(2) * 100}%`;
@@ -599,9 +609,9 @@ export default class ObjectItem {
             // Рассчет времени работы
 
             let workingHoursDuration = item.workingHours;
-            console.log(this.lastMeasurement);
+
             if (item.status === 2) {
-                workingHoursDuration = (this.lastMeasurement.current * this.lastMeasurement.workingHours) / item.current;
+                workingHoursDuration = (Math.abs(this.reference.current) * this.reference.workingHours) / Math.abs(item.current);
             }
             workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
                 ? Math.floor(workingHoursDuration / 60)
