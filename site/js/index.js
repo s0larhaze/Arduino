@@ -184,15 +184,15 @@ class App {
                         }
                     }
                     break;
-
                 // Внешние запросы
                 case "clearData":
                 case "deleteObject":
                 case "getObjectData":
                 case "startChecking":
                 case "changeObjectName":
+                console.log(message);
                     this.waitingObjects.forEach((item, i) => {
-                        if (item.name !== message.data.name) return;
+                        if (item.name !== message.data.name.name) return;
                         item.state = 1;
                         item.respons = message.data;
                     });
