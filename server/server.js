@@ -133,6 +133,7 @@ function handleMessage(message, ws) {
       break;
     case 'startChecking':
       object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
+      console.log(object_socket);
       startChecking(data.id, object_socket);
       break;
     case 'getObjects':
