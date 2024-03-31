@@ -25,14 +25,14 @@ app.use(cors({
 }))
 
 wss.on('connection', (socket) => {
-  console.log("Connection!");
+
 
   socket.on('message', message => {
     handleMessage(message, socket);
   });
 
   socket.onclose = () => {
-    console.log('Connection closed!');
+
     for (let index = 0; index < connectedUsers.length; index++) {
       if (connectedUsers[index] === socket) {
         connectedUsers.splice(index, 1);
@@ -40,7 +40,7 @@ wss.on('connection', (socket) => {
     }
   };
 
-  console.log(connectedUsers.length);
+
 })
 
 function userObjectRegistration(ws) {
@@ -51,7 +51,7 @@ function userObjectRegistration(ws) {
 function objectRegistrationHandler(object_id, ws) {
 
   if (!object_id) {
-    console.log("object_id cannot be empty, undefined or null");
+
     return;
   }
 
@@ -70,10 +70,10 @@ function objectRegistrationHandler(object_id, ws) {
         createObjectInDB();
 
       connectedObjects[object_id] = ws;
-      console.log("CONNECTEDOBJECTS", connectedObjects[object_id]);
+
     })
     .catch(err => {
-      console.log("Cathed an error", err);
+
     })
 
   createObjectInDB = () => {
@@ -94,12 +94,12 @@ function handleMessage(message, ws) {
   let data = null;
   try {
     message_json = JSON.parse(message);
-    console.log("MESSAGE_JSON", message_json);
+
     type = message_json.type;
     data = message_json.data;
     object_id = data.id;
   } catch {
-    console.log("No reasonable message.");
+
   }
 
   switch (type) {
@@ -127,18 +127,18 @@ function handleMessage(message, ws) {
       userObjectRegistration(ws);
       break;
     case 'getCurrentObjectRegistrationSocket':
-      console.log(connectedObjects.get(object_id));
-      console.log("ObjectId:");
-      console.log(object_id);
+
+
+
       ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
       break;
     case 'startChecking':
       object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
       if (!object_socket) {
-        console.log("object_socket is not present.");
+
         break;
       }
-      console.log(object_socket);
+
       startChecking(data.id, object_socket);
       break;
     case 'getObjects':
@@ -152,12 +152,12 @@ function handleMessage(message, ws) {
       getObjectIdByName(name)
         .then((result) => {
           object_id = result;
-          console.log("OBJECT_ID = " + object_id);
+
           getObjectData(object_id, name, ws);
         })
       break;
     case 'startMockEmergency':
-      console.log(connectedObjects.keys());
+
       object_socket = connectedObjects[object_id];
       startMockEmergencyHandler(object_id, object_socket);
       break;
@@ -171,14 +171,14 @@ function handleMessage(message, ws) {
       changeObjectName(data.name, data.new_name, ws);
       break;
     default:
-      console.log('Unknown message type:', type);
+
   }
 }
 
 function measurementStartedDBOperation(object_id) {
 
   if (!object_id) {
-    console.log("object_id cannot be empty");
+
     return;
 
   }
@@ -195,11 +195,11 @@ function measurementStartedDBOperation(object_id) {
   }
 
   insertRecordWithReferentialFlag = () => {
-    console.log("Trying to insert with referential flag...");
+
     sqlcon.query(`insert into measurements
       (start_timestamp, object_id, isReferential) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 1)`, (err) => {
       if (err) throw err;
-      console.log("Succesfully inserted.");
+
     })
   }
 
@@ -238,12 +238,13 @@ function measurementStartedDBOperation(object_id) {
       }
     })
     .catch(err => {
-      // console.log("CONNECTEDUSERS")
+      // 
+
       console.log(err);
       for (let index = 0; connectedUsers.length; index++) {
         connectedUsers[index].send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 0, reason: JSON.stringify(err) } }))
       }
-      console.log(err);
+
     })
 }
 
@@ -357,7 +358,7 @@ function getObjectData(object_id, name, ws) {
   object_name = '';
   current = null;
   object_status = null;
-  console.log(object_id);
+
   history = [];
 
   getObjectName = () => {
@@ -382,7 +383,7 @@ function getObjectData(object_id, name, ws) {
     return new Promise((resolve, reject) => {
       sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
         if (err) reject(err);
-        console.log(result);
+
         resolve(result);
       });
     })
@@ -436,7 +437,7 @@ function getObjectData(object_id, name, ws) {
 
 function getObjectMeasurementDataHandler(object_id, ws) {
   if (object_id === '') {
-    console.log("object_id cannot be empty");
+
     return;
   }
 
@@ -450,7 +451,7 @@ function getObjectMeasurementDataHandler(object_id, ws) {
 function clearData(object_id, object_name, ws) {
 
   if (!object_id) {
-    console.log("object_id cannot be empty");
+
     return;
   }
 
@@ -484,7 +485,7 @@ function clearData(object_id, object_name, ws) {
           status tinyint
         )`, (err, result) => {
             if (err) reject(err);
-            console.log("CREATEOBJECTSTABLE WORKED WELL");
+
             resolve(result);
           })
         })
@@ -530,7 +531,7 @@ function clearData(object_id, object_name, ws) {
           resolve();
         })
         .catch((err) => {
-          console.log(err);
+
           reject(err);
         })
     });
@@ -577,11 +578,11 @@ function clearData(object_id, object_name, ws) {
       .then(useArchiveBatteryQuery)
       .then(createArchiveTablesQuery)
       .then(() => {
-        console.log("Archive DB is ready...");
+
       })
       .then(useBatteryQuery)
       .then(result => {
-        console.log("REUSLT ", result);
+
       })
       .then(dumpMeasurementRecords)
       .then(dumpEmergencyRecords)
@@ -594,7 +595,7 @@ function clearData(object_id, object_name, ws) {
         resolve("OK");
       })
       .catch(err => {
-        console.log(err);
+
         if (ws)
           ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': false, 'reason': err } }));
       });
@@ -603,8 +604,8 @@ function clearData(object_id, object_name, ws) {
 
 function deleteObject(object_id, object_name, ws) {
 
-  console.log("OBJECT_ID", object_id);
-  console.log("OBJECT_IDTYPEOF", typeof object_id);
+
+
 
   useBatteryQuery = () => {
     return new Promise((resolve, reject) => {
@@ -657,7 +658,7 @@ function changeObjectName(object_name, new_name, ws) {
 
 function startChecking(object_id, object_socket) {
   if (!object_id) {
-    console.log("object_id cannot be empty");
+
     return;
   }
 
@@ -688,8 +689,8 @@ function getObjectIdByName(name) {
   return new Promise((resolve, reject) => {
     sqlcon.query(`select id as object_id from objects where name = '${name}'`, (err, result) => {
       if (err) reject(err);
-      console.log("GETOBJECTIDBYNAME", result);
-      console.log("GETOBJECTIDBYNAME")
+
+
       resolve(result[0].object_id);
     })
   })
@@ -699,7 +700,7 @@ function getObjectNameById(object_id) {
   return new Promise((resolve, reject) => {
     sqlcon.query(`select name from objects where id = ${object_id}`, (err, result) => {
       if (err) reject(err);
-      console.log("GETOBJECTNAMEBYID", result);
+
       resolve(result[0].name);
     })
   })
@@ -810,7 +811,7 @@ createTablesQuery = () => {
         resolve();
       })
       .catch((err) => {
-        console.log(err);
+
         reject(err);
       })
   });
@@ -821,19 +822,19 @@ SQLConnectQuery()
   .then(useBatteryQuery)
   .then(createTablesQuery)
   .then(() => {
-    console.log("All DB setups have been finished succesfully!");
+
   })
   .catch((err) => {
-    console.log(err);
+
   });
 // END DB SETUP
 
 app.get("/", (req, res) => {
-  console.log(`User ${req.ip} has connected to the root.`);
+
 
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 server.listen(3000, () => {
-  console.log("Server is running...");
+  console.log("Server is running");
 });
