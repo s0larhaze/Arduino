@@ -220,6 +220,10 @@ function measurementStartedDBOperation(object_id) {
 }
 
 function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
+  console.log("AVG_CURRENT", avg_current);
+  console.log("AVG_VOLTAGE", avg_voltage);
+  console.log("OBJECT_ID", object_id);
+
   sqlcon.query(`update measurements set
     avg_current = ${avg_current},
     avg_voltage = ${avg_voltage},
