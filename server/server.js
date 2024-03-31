@@ -673,6 +673,7 @@ function getObjectIdByName(name) {
   return new Promise((resolve, reject) => {
     sqlcon.query(`select id as object_id from objects where name = '${name}'`, (err, result) => {
       if (err) reject(err);
+      console.log("GETOBJECTIDBYNAME", result);
       resolve(result[0].id);
     })
   })
