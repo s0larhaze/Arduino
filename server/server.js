@@ -89,163 +89,172 @@ function objectRegistrationHandler(object_id, ws) {
 }
 
 function handleMessage(message, ws) {
-  let message_json = null;
-  let type = null;
-  let data = null;
-  try {
-    message_json = JSON.parse(message);
-    console.log("MESSAGE_JSON", message_json);
-    type = message_json.type;
-    data = message_json.data;
-    object_id = data.id;
-  } catch {
-    console.log("No reasonable message.");
-  }
+    let message_json = null;
+    let type = null;
+    let data = null;
+    try {
+        message_json = JSON.parse(message);
+        console.log("MESSAGE_JSON", message_json);
+        type = message_json.type;
+        data = message_json.data;
+        object_id = data.id;
+    } catch {
+        console.log("No reasonable message.");
+    }
+    console.log("mtype", type);
 
-  switch (type) {
-    // Adruino related message handling
-    case 'arduinoStartedMeasurement':
-      measurementStartedDBOperation(object_id);
-      break;
-    case 'arduinoFinishedMeasurement':
-      measurementFinishedDBOperation(data.avg_current, data.avg_voltage, object_id);
-      break;
-    case 'arduinoEmergency':
-      emergencyHandler(data.current, data.voltage, object_id);
-      break;
-    case 'arduinoEmergencyStopped':
-      emergencyStoppedHandler(object_id);
-      break;
-    case 'arduinoObjectRegistration':
-      objectRegistrationHandler(object_id, ws);
-      break;
-
-
-
-    // Adruino-unrelated message handling
-    case 'userObjectRegistration':
-      userObjectRegistration(ws);
-      break;
-    case 'getCurrentObjectRegistrationSocket':
-      console.log(connectedObjects.get(object_id));
-      console.log("ObjectId:");
-      console.log(object_id);
-      ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
-      break;
-    case 'startChecking':
-      object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
-      if (!object_socket) {
-        console.log("object_socket is not present.");
+    switch (type) {
+        // Adruino related message handling
+        case 'arduinoStartedMeasurement':
+        measurementStartedDBOperation(object_id);
         break;
-      }
-      console.log(object_socket);
-      startChecking(data.id, object_socket);
-      break;
-    case 'getObjects':
-      getObjectsHandler(ws);
-      break;
-    case 'getObjectMeasurementData':
-      getObjectMeasurementDataHandler(object_id, ws);
-      break;
-    case 'getObjectData':
-      let name = data.name;
-      getObjectIdByName(name)
+        case 'arduinoFinishedMeasurement':
+        measurementFinishedDBOperation(data.avg_current, data.avg_voltage, object_id);
+        break;
+        case 'arduinoEmergency':
+        emergencyHandler(data.current, data.voltage, object_id);
+        break;
+        case 'arduinoEmergencyStopped':
+        emergencyStoppedHandler(object_id);
+        break;
+        case 'arduinoObjectRegistration':
+        objectRegistrationHandler(object_id, ws);
+        break;
+
+
+
+        // Adruino-unrelated message handling
+        case 'userObjectRegistration':
+        userObjectRegistration(ws);
+        break;
+        case 'getCurrentObjectRegistrationSocket':
+        console.log(connectedObjects.get(object_id));
+        console.log("ObjectId:");
+        console.log(object_id);
+        ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
+        break;
+        case 'startChecking':
+        // object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
+        // if (!object_socket) {
+        //   console.log("object_socket is not present.");
+        //   break;
+        // }
+        // Объектов нема, вернуть
+        startChecking(data.id, object_socket);
+        break;
+        case 'getObjects':
+        getObjectsHandler(ws);
+        break;
+        case 'getObjectMeasurementData':
+        getObjectMeasurementDataHandler(object_id, ws);
+        break;
+        case 'getObjectData':
+        let name = data.name;
+        getObjectIdByName(name)
         .then((result) => {
-          object_id = result;
-          console.log("OBJECT_ID = " + object_id);
-          getObjectData(object_id, name, ws);
+            object_id = result;
+            console.log("OBJECT_ID = " + object_id);
+            getObjectData(object_id, name, ws);
         })
-      break;
-    case 'startMockEmergency':
-      console.log(connectedObjects.keys());
-      object_socket = connectedObjects[object_id];
-      startMockEmergencyHandler(object_id, object_socket);
-      break;
-    case 'clearData':
-      clearData(data.id, data.name, ws);
-      break;
-    case 'deleteObject':
-      deleteObject(data.id, data.name, ws);
-      break;
-    case 'changeObjectName':
-      changeObjectName(data.name, data.new_name, ws);
-      break;
-    default:
-      console.log('Unknown message type:', type);
-  }
+        break;
+        case 'startMockEmergency':
+        console.log(connectedObjects.keys());
+        object_socket = connectedObjects[object_id];
+        startMockEmergencyHandler(object_id, object_socket);
+        break;
+        case 'clearData':
+        clearData(data.id, data.name, ws);
+        break;
+        case 'deleteObject':
+        deleteObject(data.id, data.name, ws);
+        break;
+        case 'changeObjectName':
+        changeObjectName(data.name, data.new_name, ws);
+        break;
+        default:
+        console.log('Unknown message type:', type);
+    }
 }
 
-function measurementStartedDBOperation(object_id) {
+async function measurementStartedDBOperation(object_id) {
 
-  if (!object_id) {
-    console.log("object_id cannot be empty");
-    return;
+    if (!object_id) {
+        console.log("object_id cannot be empty");
+        return;
 
-  }
+    }
 
-  let object_name = null;
+    let object_name = null;
 
-  changeObjectStatus = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`UPDATE objects SET status = 1 WHERE id = '${object_id}'`, (err, result) => {
-        if (err) reject(err);
-        resolve(result);
-      })
-    })
-  }
+    // Не возвращают промисы
+    insertRecordWithReferentialFlag = () => {
+        console.log("Trying to insert with referential flag...");
+        sqlcon.query(`
+            insert into measurements (start_timestamp, object_id, isReferential)
+            values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 1)`,
+        (err) => {
+            if (err) throw err;
+            console.log("Succesfully inserted.");
+        })
+    }
+    insertRecord = () => {
+        sqlcon.query(`
+            insert into measurements (start_timestamp, object_id, isReferential)
+            values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 0)`,
+        (err) => {
+            if (err) throw err;
+        });
+    }
 
-  insertRecordWithReferentialFlag = () => {
-    console.log("Trying to insert with referential flag...");
-    sqlcon.query(`insert into measurements
-      (start_timestamp, object_id, isReferential) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 1)`, (err) => {
-      if (err) throw err;
-      console.log("Succesfully inserted.");
-    })
-  }
+    // Возвращают промисы
+    changeObjectStatus = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`UPDATE objects SET status = 1 WHERE id = '${object_id}'`, (err, result) => {
+                if (err) reject(err);
+                resolve(result);
+            })
+        })
+    }
+    checkIfRecordsExist = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
+                if (err) reject(err);
+                resolve(result[0].count);
+            })
+        })
+    }
 
-  insertRecord = () => {
-    sqlcon.query(`insert into measurements
-      (start_timestamp, object_id, isReferential) values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 0)`, (err) => {
-      if (err) throw err;
-    })
-  }
+    let count = await checkIfRecordsExist();
 
-  checkIfRecordsExist = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
-        if (err) reject(err);
-        resolve(result[0].count);
-      })
-    })
-  }
-
-  checkIfRecordsExist()
-    .then(count => {
-      if (!count) {
+    if (!count) {
         insertRecordWithReferentialFlag();
-      } else {
+    } else {
         insertRecord();
-      }
-    })
-    .then(changeObjectStatus)
-    .then(() => {
-      let object_name = getObjectNameById(object_id);
-    })
-    .then(() => {
-      for (let index = 0; index < connectedUsers.length; index++) {
-        connectedUsers[index].send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 1 } }))
-        getChangedObjectsHandler(connectedUsers[index]);
-      }
-    })
-    .catch(err => {
-      console.log("CONNECTEDUSERS", connectedUsers);
-      for (let index = 0; index < connectedUsers.length; index++) {
-        connectedUsers[index].send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 0, reason: JSON.stringify(err) } }))
-      }
-      console.log(err);
-    })
+    }
+
+    let result = await changeObjectStatus();
+    let object_name = await getObjectNameById(object_id);
+
+    if (result) {
+        connectedUsers.forEach((user, i) => {
+            user.send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 1 } }))
+            getChangedObjectsHandler(user);
+        });
+    } else {
+        connectedUsers.forEach((user, i) => {
+            user.send(JSON.stringify({
+                type: 'startChecking',
+                data: {
+                    name: object_name,
+                    status: 0,
+                    reason: "Все пошло по пизде"
+                }
+            }));
+        });
+    }
 }
 
+// end_timestamp как тут нулить при отправке
 function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
   sqlcon.query(`update measurements set
     avg_current = ${avg_current},
@@ -342,6 +351,7 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
   }
 }
 
+// Что это?
 function emergencyStoppedHandler(object_id) {
   sqlcon.query(`update set status = 0 where id = ${object_id}`, (err, result) => {
     if (err) throw err;
@@ -444,7 +454,6 @@ function getObjectMeasurementDataHandler(object_id, ws) {
     ws.send(JSON.stringify({ type: 'getObjectMeasurementData', data: result }));
   });
 }
-
 
 function clearData(object_id, object_name, ws) {
 
@@ -653,13 +662,11 @@ function changeObjectName(object_name, new_name, ws) {
   })
 }
 
-
 function startChecking(object_id, object_socket) {
   if (!object_id) {
     console.log("object_id cannot be empty");
     return;
   }
-
   object_socket.send(JSON.stringify({ type: "executePlannedMeasurement" }));
 
   // wss.clients.forEach((client) => {
@@ -677,62 +684,60 @@ function getObjectsHandler(ws) {
 
 function getChangedObjectsHandler(ws) {
 
-  objects = null;
+    objects = null;
 
-  getObjectStatus = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`SELECT status FROM objects WHERE id = ${object_id}`, (err, result) => {
-        if (err) reject(err);
-        resolve(result[0].status);
-      })
-    });
-  }
-
-  getLatestMeasurementTimestamp = (object_id) => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
-        if (err) reject(err);
-        resolve(result[0].start_timestamp);
-      })
-    });
-  }
-
-  getData = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`SELECT id, name, status
-                          FROM objects`, (err, result) => {
-        if (err) reject(err);
-        resolve(result);
-      });
-    })
-  }
-
-  processObjects = () => {
-    return new Promise((resolve, reject) => {
-      for (let i = 0; i < objects.length; i++) {
-        localObjects.push(objects[i]);
-        if (localObjects[i].status === 1) {
-          let localObjects = [];
-          getLatestMeasurementTimestamp(localObjects[i].id)
-            .then(start_timestamp => {
-              localObjects[i]['timestamp'] = start_timestamp;
-              console.log("PROCESSLOCALOBJECTS", localObjects);
+    getObjectStatus = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`SELECT status FROM objects WHERE id = ${object_id}`, (err, result) => {
+                if (err) reject(err);
+                resolve(result[0].status);
             })
-        }
-      }
-    })
-  }
+        });
+    }
+    getLatestMeasurementTimestamp = (object_id) => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
+                if (err) reject(err);
+                resolve(result[0].start_timestamp);
+            })
+        });
+    }
+    getData = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`SELECT id, name, status FROM objects`,
+            (err, result) => {
+                if (err) reject(err);
+                resolve(result);
+            });
+        });
+    }
+    // Что это?
+    processObjects = (objects) => {
+        return new Promise((resolve, reject) => {
+            for (let i = 0; i < objects.length; i++) {
+                localObjects.push(objects[i]);
+                if (localObjects[i].status === 1) {
+                    let localObjects = [];
+                    getLatestMeasurementTimestamp(localObjects[i].id)
+                    .then(start_timestamp => {
+                        localObjects[i]['timestamp'] = start_timestamp;
+                        console.log("PROCESSLOCALOBJECTS", localObjects);
+                    })
+                }
+            }
+        })
+    }
 
-  getData()
-    .then(result => {
-      objects = result;
-    })
-    .then(processObjects)
+    let objects = await getData();
+
+    // Надо, чтобы возвращало результат
+    let localObjects = await processObjects(objects);
+
     .then(localObjects => {
-      console.log("OBJECTS", localObjects);
-      for (let i = 0; i < connectedUsers.length; i++) {
-        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: localObjects }))
-      }
+        console.log("OBJECTS", localObjects);
+        for (let i = 0; i < connectedUsers.length; i++) {
+            connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: localObjects }))
+        }
     })
 }
 
