@@ -133,6 +133,10 @@ function handleMessage(message, ws) {
       break;
     case 'startChecking':
       object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
+      if (!object_socket) {
+        console.log("object_socket is not present.");
+        break;
+      }
       console.log(object_socket);
       startChecking(data.id, object_socket);
       break;
