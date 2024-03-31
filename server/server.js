@@ -180,6 +180,18 @@ function measurementStartedDBOperation(object_id) {
   if (!object_id) {
     console.log("object_id cannot be empty");
     return;
+
+  }
+
+  let object_name = null;
+
+  changeObjectStatus = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`UPDATE objects SET status = 1 WHERE id = '${object_id}'`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    })
   }
 
   insertRecordWithReferentialFlag = () => {
@@ -214,16 +226,21 @@ function measurementStartedDBOperation(object_id) {
       } else {
         insertRecord();
       }
-    }).catch(err => {
+    })
+    .then(() => {
+      let object_name = getObjectIdByName(object_id);
+    })
+    .then(() => {
+      for (let index = 0; connectedUsers.length; index++) {
+        connectedUsers[index].send({ type: 'startChecking', data: { name: object_name, status: 1 } })
+      }
+    })
+    .catch(err => {
       console.log(err);
     })
 }
 
 function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
-  console.log("AVG_CURRENT", avg_current);
-  console.log("AVG_VOLTAGE", avg_voltage);
-  console.log("OBJECT_ID", object_id);
-
   sqlcon.query(`update measurements set
     avg_current = ${avg_current},
     avg_voltage = ${avg_voltage},
