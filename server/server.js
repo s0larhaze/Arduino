@@ -715,7 +715,7 @@ function getChangedObjectsHandler(ws) {
         if (localObjects[i].status === 1) {
           getLatestMeasurementTimestamp(localObjects[i].id)
             .then(start_timestamp => {
-              localObjects[i].timestamp = start_timestamp;
+              localObjects[i]['timestamp'] = start_timestamp;
               console.log("PROCESSLOCALOBJECTS", localObjects);
             })
         }
