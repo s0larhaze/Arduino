@@ -238,6 +238,8 @@ function measurementStartedDBOperation(object_id) {
       }
     })
     .catch(err => {
+      // console.log("CONNECTEDUSERS")
+      console.log(err);
       for (let index = 0; connectedUsers.length; index++) {
         connectedUsers[index].send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 0, reason: JSON.stringify(err) } }))
       }
