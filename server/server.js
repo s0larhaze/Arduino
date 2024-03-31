@@ -709,10 +709,10 @@ function getChangedObjectsHandler(ws) {
 
   processObjects = () => {
     return new Promise((resolve, reject) => {
-      let localObjects = [];
       for (let i = 0; i < objects.length; i++) {
         localObjects.push(objects[i]);
         if (localObjects[i].status === 1) {
+          let localObjects = [];
           getLatestMeasurementTimestamp(localObjects[i].id)
             .then(start_timestamp => {
               localObjects[i]['timestamp'] = start_timestamp;
@@ -720,7 +720,6 @@ function getChangedObjectsHandler(ws) {
             })
         }
       }
-      resolve(localObjects);
     })
   }
 
