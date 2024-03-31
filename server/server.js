@@ -233,7 +233,7 @@ async function measurementStartedDBOperation(object_id) {
     }
 
     let result = await changeObjectStatus();
-    let object_name = await getObjectNameById(object_id);
+    object_name = await getObjectNameById(object_id);
 
     if (result) {
         connectedUsers.forEach((user, i) => {
@@ -682,7 +682,7 @@ function getObjectsHandler(ws) {
   });
 }
 
-function getChangedObjectsHandler(ws) {
+async function getChangedObjectsHandler(ws) {
 
     objects = null;
 
