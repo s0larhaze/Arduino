@@ -20,7 +20,7 @@ const respons = {
         status: 2,
         voltage: 12,
         current: 12,
-        date: 1710584772064,
+        timestamp: 1710584772064,
     }, // Существует только при тревоге
     history: [
         {
@@ -28,46 +28,46 @@ const respons = {
             status: 1,
             voltage: 12,
             current: 12,
-            date: 1700484742064,
+            timestamp: 1700484742064,
             workingHours: 301,
         }, {
             name: "Воронеж база1",
             status: 1,
             voltage: 13,
             current: 10,
-            date: 1705584722064,
+            timestamp: 1705584722064,
             workingHours: 293,
         }, {
             name: "Воронеж база1",
             status: 1,
             voltage: 12,
             current: 12,
-            date: 1709585772064,
+            timestamp: 1709585772064,
             workingHours: 260,
         }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
             current: 12,
-            date: 1710584771064,
+            timestamp: 1710584771064,
         }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
             current: 12,
-            date: 1710584771064,
+            timestamp: 1710584771064,
         }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
             current: 12,
-            date: 1710584771064,
+            timestamp: 1710584771064,
         }, {
             name: "Воронеж база1",
             status: 2,
             voltage: 12,
             current: 12,
-            date: 1710584771064,
+            timestamp: 1710584771064,
         },
     ]
 };

@@ -27,8 +27,11 @@ export default class ObjectItem {
             this.data = this.data.history.sort((a, b) => {return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()});
 
             this.reference = this.data.pop();
-            this.reference.workingHours = (new Date(this.reference.timestamp).getTime() - new Date(this.reference.start_timestamp).getTime()) / 1000 / 60;
-
+            let end = new Date(this.reference.timestamp).getTime();
+            let start = new Date(this.reference.start_timestamp).getTime();
+            if (!!(end && start)) {
+                this.reference.workingHours = (end - start) / 1000 / 60;
+            }
             this.data.unshift(this.reference); // Это элемент с самой ранней временной меткой. Предполагается, что это первое измерение и оно же эталон
             if (current) this.data.unshift(current); // Это первый элемент, который существует только при тревоге
         } else {
@@ -571,17 +574,30 @@ export default class ObjectItem {
             const th           = document.createElement("TH");
 
             if (item.status === 1) {
-                item.workingHours = (new Date(item.timestamp).getTime() - new Date(item.start_timestamp).getTime()) / 1000 / 60;
+                let end = new Date(item.timestamp).getTime();
+                let start = new Date(item.start_timestamp).getTime();
+                if (end && start) {
+                    item.workingHours = (end - start) / 1000 / 60;
+
+                }
             }
 
-            let date = new Date(item.timestamp);
-            date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+            let date;
+            if (item.timestamp) {
+                date = new Date(item.timestamp);
+                date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+            } else if (item.start_timestamp) {
+                date = new Date(item.start_timestamp);
+                date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+            } else {
+                date = "-";
+            }
 
             th.textContent = `${date}`
-            voltage.textContent = `${item.voltage}`;
-            current.textContent = `${item.current}`;
+            voltage.textContent = `${item.voltage || "-"}`;
+            current.textContent = `${item.current || "-"}`;
             capacity.textContent = (item.workingHours) ? `${(item.current * item.workingHours / 60).toFixed(2)}` : '-';
-            power.textContent = `${item.voltage * item.current}`;
+            power.textContent = `${item.voltage * item.current || "-"}`;
 
             // Расчет деградации
             let degradationInPercent = '-';
@@ -593,16 +609,22 @@ export default class ObjectItem {
             degradation.textContent = degradationInPercent;
             // Рассчет времени работы
 
-            let workingHoursDuration = item.workingHours;
-
-            if (item.status === 2) {
-                workingHoursDuration = (Math.abs(this.reference.current) * this.reference.workingHours) / Math.abs(item.current);
+            let workingHoursDuration;
+            // Если есть время работы (начальная и конечная даты)
+            if (item.workingHours) {
+                workingHoursDuration = item.workingHours;
+                if (item.status === 2) {
+                    workingHoursDuration = (Math.abs(this.reference.current) * this.reference.workingHours) / Math.abs(item.current);
+                }
+                workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
+                    ? Math.floor(workingHoursDuration / 60)
+                    : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
+                        ? Math.floor(workingHoursDuration % 60)
+                        : `0${Math.floor(workingHoursDuration % 60)}`}`;
+            } else {
+                workingHoursDuration = "-";
             }
-            workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
-                ? Math.floor(workingHoursDuration / 60)
-                : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
-                    ? Math.floor(workingHoursDuration % 60)
-                    : `0${Math.floor(workingHoursDuration % 60)}`}`;
+
 
             workingHours.textContent = workingHoursDuration;
             // Обратный отсчет у тревожной записи
