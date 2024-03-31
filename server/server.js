@@ -731,8 +731,7 @@ async function getChangedObjectsHandler(ws) {
     let objects = await getData();
 
     // Надо, чтобы возвращало результат
-    let localObjects = await processObjects(objects);
-
+    processObjects(objects)
     .then(localObjects => {
         console.log("OBJECTS", localObjects);
         for (let i = 0; i < connectedUsers.length; i++) {
