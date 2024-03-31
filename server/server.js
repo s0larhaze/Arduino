@@ -238,7 +238,9 @@ function measurementStartedDBOperation(object_id) {
       }
     })
     .catch(err => {
-      connectedUsers[index].send({ type: 'startChecking', data: { name: object_name, status: 0, reason: err } })
+      for (let index = 0; connectedUsers.length; index++) {
+        connectedUsers[index].send({ type: 'startChecking', data: { name: object_name, status: 0, reason: err } })
+      }
       console.log(err);
     })
 }
