@@ -208,18 +208,15 @@ class App {
                 reject(new Error('Socket is not ready.'));
                 return;
             }
+            let interval;
 
             switch (query.type) {
-                case "clearData":
                 case "deleteObject":
-                case "getObjectData":
-                case "startChecking":
-                case "changeObjectName":
                     this.socket.send(JSON.stringify(query));
 
                     this.waitingObjects.push({ name: query.data.name, respons: null, state: 0 });
                     this.responses[query.name] = null;
-                    const interval = setInterval(() => {
+                    interval = setInterval(() => {
                         this.waitingObjects.forEach((item, i) => {
                             if (item.name !== query.data.name) return;
                             if (item.state) {
@@ -228,6 +225,25 @@ class App {
                                 this.waitingObjects.pop(i);
                                 let tmp = document.querySelector(`#${item.name}`);
                                 if (tmp) tmp.remove();
+                            }
+                        });
+                    }, 10);
+                    break;
+                case "clearData":
+                case "getObjectData":
+                case "startChecking":
+                case "changeObjectName":
+                    this.socket.send(JSON.stringify(query));
+
+                    this.waitingObjects.push({ name: query.data.name, respons: null, state: 0 });
+                    this.responses[query.name] = null;
+                    interval = setInterval(() => {
+                        this.waitingObjects.forEach((item, i) => {
+                            if (item.name !== query.data.name) return;
+                            if (item.state) {
+                                clearInterval(interval);
+                                resolve(item.respons);
+                                this.waitingObjects.pop(i);
                             }
                         });
                     }, 10);

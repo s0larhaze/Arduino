@@ -19,8 +19,9 @@ export default class ObjectItem {
         if (this.self) this.self.remove();
         // Получаем данные
         this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}});
+        console.log("cur", this.data);
         this.id = this.data.id;
-        // Если данных нет
+        // Если данные есть
         if (this.data && this.data.history) {
             const current = this.data.current || null;
 
