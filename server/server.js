@@ -132,9 +132,8 @@ function handleMessage(message, ws) {
       ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
       break;
     case 'startChecking':
-      console.log(connectedObjects.keys());
       object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
-      startChecking(object_id, object_socket);
+      startChecking(data.id, object_socket);
       break;
     case 'getObjects':
       getObjectsHandler(ws);
