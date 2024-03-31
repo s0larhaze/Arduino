@@ -97,6 +97,7 @@ function handleMessage(message, ws) {
     console.log("MESSAGE_JSON", message_json);
     type = message_json.type;
     data = message_json.data;
+    object_id = data.id;
   } catch {
     console.log("No reasonable message.");
   }
