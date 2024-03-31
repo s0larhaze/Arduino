@@ -724,6 +724,7 @@ function getChangedObjectsHandler(ws) {
     })
     .then(processObjects)
     .then(() => {
+      console.log("OBJECTS", objects);
       for (let i = 0; i < connectedUsers.length; i++) {
         connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objects }))
       }
