@@ -19,7 +19,6 @@ export default class ObjectItem {
         if (this.self) this.self.remove();
         // Получаем данные
         this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}});
-        console.log("cur", this.data);
         this.id = this.data.id;
         // Если данные есть
         if (this.data && this.data.history) {
@@ -319,13 +318,42 @@ export default class ObjectItem {
         this.updateTable();
     }
 
+    getMonthStringByIndex(index) {
+        switch (index) {
+            case 1:
+                return "Январь"
+            case 2:
+                return "Февраль"
+            case 3:
+                return "Март"
+            case 4:
+                return "Апрель"
+            case 5:
+                return "Май"
+            case 6:
+                return "Июнь"
+            case 7:
+                return "Июль"
+            case 8:
+                return "Август"
+            case 9:
+                return "Сентябрь"
+            case 10:
+                return "Октябрь"
+            case 11:
+                return "Ноябрь"
+            default:
+                return "Декабрь"
+        }
+    }
+
     updateTable() {
         let filteredData = [];
         let temp = [];
         let months = new Set();
         let days = new Set();
 
-        // Если выбран год
+        // Год
         if (this.filter.year != "null") {
             // Получаем месяцы и дни этого года
             this.data.forEach(item => {
@@ -334,7 +362,7 @@ export default class ObjectItem {
                 if (date.getFullYear() == this.filter.year) {
                     filteredData.push(item); // Добавляем элемент
 
-                    months.add(date.getMonth()); // Добавляем месяц элемента
+                    months.add(this.getMonthStringByIndex(date.getMonth() + 1)); // Добавляем месяц элемента
                     days.add(date.getDay()); // Добавляем день элемента
                 }
             });
@@ -344,7 +372,7 @@ export default class ObjectItem {
         if (!months.size) {
             this.data.forEach(item => {
                 let date = new Date(item.timestamp);
-                months.add(date.getMonth());
+                months.add(this.getMonthStringByIndex(date.getMonth() + 1)); // Добавляем месяц элемента
             });
         }
 
@@ -370,13 +398,12 @@ export default class ObjectItem {
         if (this.filter.month != "null") {
             // Если выбран месяц, то дней может быть меньше, потому мы их перебираем
             days = new Set();
-
             if (!filteredData.length) filteredData = this.data;
 
             filteredData.forEach(item => {
                 const date = new Date(item.timestamp);
 
-                if (date.getMonth() == this.filter.month) {
+                if (this.getMonthStringByIndex(date.getMonth() + 1) == this.filter.month) {
                     temp.push(item); // Добавляем элемент
 
                     days.add(date.getDay()); // Добавляем день
@@ -413,11 +440,13 @@ export default class ObjectItem {
 
             this.selectDay.appendChild(op);
         });
+
         // День
         if (this.filter.day != "null") {
+            if (!filteredData.length) filteredData = this.data;
+
             filteredData.forEach(item => {
                 const date = new Date(item.timestamp);
-
                 if (date.getDay() == this.filter.day) {
                     temp.push(item);
                 }
@@ -458,7 +487,7 @@ export default class ObjectItem {
             let date = new Date(item.timestamp);
 
             ySet.add(date.getFullYear());
-            mSet.add(date.getMonth());
+            mSet.add(date.getMonth() + 1);
             dSet.add(date.getDay());
         });
 
@@ -475,43 +504,7 @@ export default class ObjectItem {
         });
 
         mSet.forEach((item, i) => {
-            switch (item) {
-                case 0:
-                    item = "Январь"
-                    break;
-                case 1:
-                    item = "Февраль"
-                    break;
-                case 2:
-                    item = "Март"
-                    break;
-                case 3:
-                    item = "Апрель"
-                    break;
-                case 4:
-                    item = "Май"
-                    break;
-                case 5:
-                    item = "Июнь"
-                    break;
-                case 6:
-                    item = "Июль"
-                    break;
-                case 7:
-                    item = "Август"
-                    break;
-                case 8:
-                    item = "Сентябрь"
-                    break;
-                case 9:
-                    item = "Октябрь"
-                    break;
-                case 10:
-                    item = "Ноябрь"
-                    break;
-                default:
-                    item = "Декабрь"
-            }
+            item = this.getMonthStringByIndex(item);
             mOption = document.createElement("OPTION");
             mOption.textContent = item;
             mOption.value = item;
@@ -593,7 +586,6 @@ export default class ObjectItem {
             // Расчет деградации
             let degradationInPercent = '-';
             if (item.workingHours) {
-                console.log(this.reference);
                 let c1 = (item.current * item.workingHours / 60);
                 let c2 = (this.reference.current * this.reference.workingHours / 60);
                 degradationInPercent = `${(c1 / c2).toFixed(2) * 100}%`;
