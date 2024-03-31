@@ -233,13 +233,13 @@ function measurementStartedDBOperation(object_id) {
     })
     .then(() => {
       for (let index = 0; connectedUsers.length; index++) {
-        connectedUsers[index].send({ type: 'startChecking', data: { name: object_name, status: 1 } })
+        connectedUsers[index].send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 1 } }))
         getChangedObjectsHandler(connectedUsers[index]);
       }
     })
     .catch(err => {
       for (let index = 0; connectedUsers.length; index++) {
-        connectedUsers[index].send({ type: 'startChecking', data: { name: object_name, status: 0, reason: JSON.stringify(err) } })
+        connectedUsers[index].send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 0, reason: JSON.stringify(err) } }))
       }
       console.log(err);
     })
