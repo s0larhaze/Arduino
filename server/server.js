@@ -223,7 +223,7 @@ function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
   sqlcon.query(`update measurements set
     avg_current = ${avg_current},
     avg_voltage = ${avg_voltage},
-    end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}',
+    end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}'
     where object_id = ${object_id} and end_timestamp is NULL`, (err) => {
     if (err) throw err;
   })
