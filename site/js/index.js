@@ -1,5 +1,7 @@
 import ObjectItem from "./components/objectItem.js";
 import { io }     from "socket.io-client";
+import config     from "./conf.js";
+
 
 import "../css/style.css";
 
@@ -137,7 +139,7 @@ class App {
 
     async startSocet() {
         // Подключаем сокет
-        const url = "ws://127.0.0.1:3000";
+        const url = config.url;
         this.socket = new WebSocket(url);
 
         // Если подключили - запрашиваем объекты
