@@ -228,7 +228,7 @@ function measurementStartedDBOperation(object_id) {
       }
     })
     .then(() => {
-      let object_name = getObjectIdByName(object_id);
+      let object_name = getObjectNameById(object_id);
     })
     .then(() => {
       for (let index = 0; connectedUsers.length; index++) {
@@ -674,7 +674,18 @@ function getObjectIdByName(name) {
     sqlcon.query(`select id as object_id from objects where name = '${name}'`, (err, result) => {
       if (err) reject(err);
       console.log("GETOBJECTIDBYNAME", result);
+      console.log("GETOBJECTIDBYNAME")
       resolve(result[0].object_id);
+    })
+  })
+}
+
+function getObjectNameById(object_id) {
+  return new Promise((resolve, reject) => {
+    sqlcon.query(`select name from objects where id = ${object_id}`, (err, result) => {
+      if (err) reject(err);
+      console.log("GETOBJECTNAMEBYID", result);
+      resolve(result[0].name);
     })
   })
 }
