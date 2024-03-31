@@ -713,7 +713,7 @@ function getChangedObjectsHandler(ws) {
         getLatestMeasurementTimestamp(objects[i].id)
           .then(start_timestamp => {
             objects[i].timestamp = start_timestamp;
-            console.log(objects);
+            console.log("PROCESSOBJECTS", objects);
           })
       }
     }
