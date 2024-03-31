@@ -228,7 +228,7 @@ function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
     avg_current = ${avg_current},
     avg_voltage = ${avg_voltage},
     end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}'
-    where object_id = ${object_id} and end_timestamp is NULL`, (err) => {
+    where object_id = ${object_id} and end_timestamp = '0000-00-00 00:00:00'`, (err) => {
     if (err) throw err;
   })
 }
