@@ -232,7 +232,7 @@ function measurementStartedDBOperation(object_id) {
       let object_name = getObjectNameById(object_id);
     })
     .then(() => {
-      for (let index = 0; connectedUsers.length; index++) {
+      for (let index = 0; index < connectedUsers.length; index++) {
         connectedUsers[index].send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 1 } }))
         getChangedObjectsHandler(connectedUsers[index]);
       }
