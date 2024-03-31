@@ -163,7 +163,7 @@ function handleMessage(message, ws) {
       deleteObject(data.id, data.name, ws);
       break;
     case 'changeObjectName':
-      changeObjectName(object_id);
+      changeObjectName(data.name, data.new_name, ws);
       break;
     default:
       console.log('Unknown message type:', type);
@@ -238,7 +238,7 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
     })
     .then(getEmergencyData, object_name)
     .then(emergencies => {
-      latest = emergencies[0];
+      current = emergencies[0];
 
       for (let index = 1; index < emergencies.length; index++) {
         history.push(emergencies[index]);
@@ -323,6 +323,7 @@ function emergencyStoppedHandler(object_id) {
 function getObjectData(object_id, name, ws) {
   object_name = '';
   current = null;
+  object_status = null;
   console.log(object_id);
   history = [];
 
@@ -354,16 +355,37 @@ function getObjectData(object_id, name, ws) {
     })
   }
 
-  getObjectName()
+  getObjectStatus = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select status from objects where id = ${object_id}`, (err, result) => {
+        if (err) reject(err);
+        resolve(result[0].status);
+      })
+    });
+  }
+
+  getObjectStatus()
+    .then(status => {
+      object_status = status;
+    })
+    .then(getObjectName)
     .then(name_of_object => {
       object_name = name_of_object;
     })
     .then(getEmergencyData, object_name)
     .then(emergencies => {
-      current = emergencies[0] || null;
-      for (let index = 1; index < emergencies.length; index++) {
-        emergencies[index]['status'] = 2;
-        history.push(emergencies[index]);
+      if (object_status === 2) {
+        current = emergencies[0] || null;
+
+        for (let index = 1; index < emergencies.length; index++) {
+          emergencies[index]['status'] = 2;
+          history.push(emergencies[index]);
+        }
+      } else {
+        for (let index = 0; index < emergencies.length; index++) {
+          emergencies[index]['status'] = 2;
+          history.push(emergencies[index]);
+        }
       }
     })
     .then(getMeasurementsData, object_name)
@@ -590,7 +612,7 @@ function deleteObject(object_id, object_name, ws) {
 }
 
 function changeObjectName(object_name, new_name, ws) {
-  sqlcon.query(`update set name = ${new_name} where name = ${object_name}`, (err, result) => {
+  sqlcon.query(`UPDATE objects SET name = '${new_name}' WHERE name = '${object_name}'`, (err, result) => {
     if (err) {
       ws.send(JSON.stringify({ type: 'changeObjectName', data: { 'status': false, 'reason': err.message } }));
       throw err;
