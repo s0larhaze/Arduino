@@ -55,6 +55,15 @@ function objectRegistrationHandler(object_id, ws) {
     return;
   }
 
+  checkIfObjectPresentInDB = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select count (*) as count from objects where id = ${object_id}`, (err, result) => {
+        if (err) reject(err);
+        resolve(result[0].count);
+      });
+    })
+  }
+
   checkIfObjectPresentInDB()
     .then(count => {
       if (!count)
@@ -66,15 +75,6 @@ function objectRegistrationHandler(object_id, ws) {
     .catch(err => {
       console.log("Cathed an error", err);
     })
-
-  checkIfObjectPresentInDB = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select count (*) as count from objects where id = ${object_id}`, (err, result) => {
-        if (err) reject(err);
-        resolve(result[0].count);
-      });
-    })
-  }
 
   createObjectInDB = () => {
     sqlcon.query(`insert into objects (id, name, status) values
