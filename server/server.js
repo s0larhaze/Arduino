@@ -560,6 +560,15 @@ function deleteObject(object_id, object_name, ws) {
     });
   }
 
+  addObjectToArchiveDB = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`INSERT INTO archive_battery.objects SELECT * FROM battery.objects WHERE id = ${object_id}`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      })
+    });
+  }
+
   deleteObjectFromDB = () => {
     return new Promise((resolve, reject) => {
       sqlcon.query(`DELETE FROM objects WHERE id = ${object_id}`, (err, result) => {
@@ -573,6 +582,7 @@ function deleteObject(object_id, object_name, ws) {
   }
 
   useBatteryQuery()
+    .then(addObjectToArchiveDB)
     .then(() => {
       clearData(object_id, object_name, ws);
     })
