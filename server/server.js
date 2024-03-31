@@ -709,16 +709,18 @@ function getChangedObjectsHandler(ws) {
 
   processObjects = () => {
     return new Promise((resolve, reject) => {
+      let localObjects = null;
       for (let i = 0; i < objects.length; i++) {
-        if (objects[i].status === 1) {
-          getLatestMeasurementTimestamp(objects[i].id)
+        localObjects.push(objects[i]);
+        if (localObjects[i].status === 1) {
+          getLatestMeasurementTimestamp(localObjects[i].id)
             .then(start_timestamp => {
-              objects[i].timestamp = start_timestamp;
-              console.log("PROCESSOBJECTS", objects);
+              localObjects[i].timestamp = start_timestamp;
+              console.log("PROCESSLOCALOBJECTS", localObjects);
             })
         }
       }
-      resolve(objects);
+      resolve(localObjects);
     })
   }
 
@@ -727,10 +729,10 @@ function getChangedObjectsHandler(ws) {
       objects = result;
     })
     .then(processObjects)
-    .then(objects => {
-      console.log("OBJECTS", objects);
+    .then(localObjects => {
+      console.log("OBJECTS", localObjects);
       for (let i = 0; i < connectedUsers.length; i++) {
-        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objects }))
+        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: localObjects }))
       }
     })
 }
