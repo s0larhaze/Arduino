@@ -676,11 +676,58 @@ function getObjectsHandler(ws) {
 }
 
 function getChangedObjectsHandler(ws) {
-  sqlcon.query(`SELECT id, name, status
-                      FROM objects`, (err, result) => {
-    if (err) throw err;
-    ws.send(JSON.stringify({ type: 'objectsChanges', data: result }));
-  });
+
+  objects = null;
+
+  getObjectStatus = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`SELECT status FROM objects WHERE id = ${object_id}`, (err, result) => {
+        if (err) reject(err);
+        resolve(result[0].status);
+      })
+    });
+  }
+
+  getLatestMeasurementTimestamp = (object_id) => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
+        if (err) reject(err);
+        resolve(result[0].start_timestamp);
+      })
+    });
+  }
+
+  getData = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`SELECT id, name, status
+                          FROM objects`, (err, result) => {
+        if (err) reject(err);
+        resolve(result);
+      });
+    })
+  }
+
+  processObjects = () => {
+    for (let i = 0; i < objects.length; i++) {
+      if (objects[i].status === 1) {
+        getLatestMeasurementTimestamp(objects[i].id)
+          .then(start_timestamp => {
+            objects[i].timestamp = start_timestamp;
+          })
+      }
+    }
+  }
+
+  getData()
+    .then(result => {
+      objects = result;
+    })
+    .then(processObjects)
+    .then(() => {
+      for (let i = 0; i < connectedUsers.length; i++) {
+        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objects }))
+      }
+    })
 }
 
 function getObjectIdByName(name) {
