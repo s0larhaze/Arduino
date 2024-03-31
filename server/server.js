@@ -61,7 +61,7 @@ function objectRegistrationHandler(object_id, ws) {
         createObjectInDB();
 
       connectedObjects[object_id] = ws;
-      console.log(connectedObjects.get(object_id));
+      console.log("CONNECTEDOBJECTS", connectedObjects[object_id]);
     })
     .catch(err => {
       console.log("Cathed an error", err);
@@ -131,10 +131,10 @@ function handleMessage(message, ws) {
       console.log(object_id);
       ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
       break;
-    case 'executePlannedMeasurement':
+    case 'startChecking':
       console.log(connectedObjects.keys());
-      object_socket = connectedObjects.get(object_id); // not working, gotta find a better solution
-      executePlannedMeasurementHandler(object_id, object_socket);
+      object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
+      startChecking(object_id, object_socket);
       break;
     case 'getObjects':
       getObjectsHandler(ws);
@@ -622,7 +622,7 @@ function changeObjectName(object_name, new_name, ws) {
 }
 
 
-function executePlannedMeasurementHandler(object_id, object_socket) {
+function startChecking(object_id, object_socket) {
   if (!object_id) {
     console.log("object_id cannot be empty");
     return;
