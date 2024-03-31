@@ -182,26 +182,6 @@ function measurementStartedDBOperation(object_id) {
     return;
   }
 
-  checkIfRecordsExist()
-    .then(count => {
-      if (!count) {
-        insertRecordWithReferentialFlag();
-      } else {
-        insertRecord();
-      }
-    }).catch(err => {
-      console.log(err);
-    })
-
-  checkIfRecordsExist = () => {
-    return new Promise((resolve, reject) => {
-      sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
-        if (err) reject(err);
-        resolve(result[0].count);
-      })
-    })
-  }
-
   insertRecordWithReferentialFlag = () => {
     console.log("Trying to insert with referential flag...");
     sqlcon.query(`insert into measurements
@@ -217,6 +197,26 @@ function measurementStartedDBOperation(object_id) {
       if (err) throw err;
     })
   }
+
+  checkIfRecordsExist = () => {
+    return new Promise((resolve, reject) => {
+      sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
+        if (err) reject(err);
+        resolve(result[0].count);
+      })
+    })
+  }
+
+  checkIfRecordsExist()
+    .then(count => {
+      if (!count) {
+        insertRecordWithReferentialFlag();
+      } else {
+        insertRecord();
+      }
+    }).catch(err => {
+      console.log(err);
+    })
 }
 
 function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
