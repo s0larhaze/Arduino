@@ -227,15 +227,18 @@ function measurementStartedDBOperation(object_id) {
         insertRecord();
       }
     })
+    .then(changeObjectStatus)
     .then(() => {
       let object_name = getObjectNameById(object_id);
     })
     .then(() => {
       for (let index = 0; connectedUsers.length; index++) {
         connectedUsers[index].send({ type: 'startChecking', data: { name: object_name, status: 1 } })
+        getChangedObjectsHandler(connectedUsers[index]);
       }
     })
     .catch(err => {
+      connectedUsers[index].send({ type: 'startChecking', data: { name: object_name, status: 0, reason: err } })
       console.log(err);
     })
 }
@@ -666,6 +669,14 @@ function getObjectsHandler(ws) {
                       FROM objects`, (err, result) => {
     if (err) throw err;
     ws.send(JSON.stringify({ type: 'getObjects', data: result }));
+  });
+}
+
+function getChangedObjectsHandler(ws) {
+  sqlcon.query(`SELECT id, name, status
+                      FROM objects`, (err, result) => {
+    if (err) throw err;
+    ws.send(JSON.stringify({ type: 'objectsChanges', data: result }));
   });
 }
 
