@@ -709,7 +709,7 @@ function getChangedObjectsHandler(ws) {
 
   processObjects = () => {
     return new Promise((resolve, reject) => {
-      let localObjects = null;
+      let localObjects = [];
       for (let i = 0; i < objects.length; i++) {
         localObjects.push(objects[i]);
         if (localObjects[i].status === 1) {
