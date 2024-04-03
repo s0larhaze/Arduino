@@ -180,9 +180,9 @@ class App {
                     this.handleObjectsChanges(newObjects);
                     break;
                 case "objectDataChanges":
-                    if (this.objectItems[data.name]) {
-                        if (this.objectItems[data.current.name].self) {
-                            this.objectItems[obj.name].start();
+                    if (this.objectItems[message.data.name]) {
+                        if (this.objectItems[message.data.name].self) {
+                            this.objectItems[message.data.name].start();
                         }
                     }
                     break;
@@ -211,7 +211,7 @@ class App {
                 return;
             }
             let interval;
-
+            console.log(query.type);
             switch (query.type) {
                 case "deleteObject":
                     this.socket.send(JSON.stringify(query));
