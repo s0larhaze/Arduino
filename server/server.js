@@ -717,7 +717,7 @@ async function getObjectsHandler(ws) {
 
     getObjectData()
         .then(result => {
-            return new Promise((response, reject) => {
+            return new Promise(async (response, reject) => {
                 console.log(result);
                 for (let index = 0; index < result.length; index++) {
                     let currentObject = result[index];
@@ -732,7 +732,8 @@ async function getObjectsHandler(ws) {
                         objects.push(localObject);
                     }
                     else {
-                        objects.push();
+                        let localObject = currentObject;
+                        objects.push(localObject);
                     }
                 }
                 response("OK");
@@ -740,7 +741,7 @@ async function getObjectsHandler(ws) {
         })
         .then(() => {
             for (let i = 0; i < connectedUsers.length; i++) {
-                connectedUsers[i].send(JSON.stringify{ type: "" })
+                connectedUsers[i].send(JSON.stringify({ type: "getObjects", data: objects }));
             }
         })
 }
