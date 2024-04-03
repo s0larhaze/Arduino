@@ -1,3 +1,11 @@
+// При проверке
+// Я отправляю тебе запрос на проверку.
+// Ты отправляешь ответ со статусом
+// Ты отправляешь ответ, что объекты изменились
+
+// При сработке
+// Ты отправляешь мне objectsChanges
+// Ты отправляешь мне objectDataChanges 
 const express = require('express');
 const bodyParser = require('body-parser');
 const mysql = require('mysql');
