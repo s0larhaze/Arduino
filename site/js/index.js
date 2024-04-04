@@ -169,7 +169,7 @@ class App {
 
         this.socket.onmessage = (event) => {
             let message = JSON.parse(event.data);
-            console.log(message.type);
+            console.log(message);
             switch (message.type) {
                 // Внутренние запросы
                 case "getObjects":
