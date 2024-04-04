@@ -24,7 +24,9 @@ export default class ObjectItem {
         if (this.data && this.data.history) {
             const current = this.data.current || null;
 
-            this.data = this.data.history.sort((a, b) => {return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()});
+            console.log(this.data.history[0].timestamp);
+            console.log(this.data.history);
+            this.data = this.data.history.sort((a, b) => {return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()});
 
             this.reference = this.data.pop();
             let end = new Date(this.reference.timestamp).getTime();
@@ -282,7 +284,11 @@ export default class ObjectItem {
     }
 
     restart(name, status, timestamp) {
-        this.timestamp = timestamp || this.timestamp;
+        if (!status) {
+            this.timestamp = null;
+        } else {
+            this.timestamp = timestamp || this.timestamp;
+        }
         this.status    = status || this.status;
         this.name      = name || this.name;
         // if (this.self) {
