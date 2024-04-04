@@ -16,9 +16,12 @@
     "express": "^4.18.3",
     "moment": "^2.30.1",
     "mysql": "^2.18.1",
-    "serialport": "^12.0.0"
+    "serialport": "^12.0.0",
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
-    "nodemon": "^3.1.0"
+    "nodemon": "^3.1.0",
+    "typescript": "^5.4.3"
   }
 }

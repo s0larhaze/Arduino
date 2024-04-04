@@ -8,73 +8,98 @@
   <body>
     <button type="" id="executePlannedMeasurementBtn">executePlannedMeasurement</button>
     <input type="" name="" value="" id="objectIdField">
-    <button type="" id="getListOfObjectsBtn">getListOfObjects</button>
+    <button type="" id="getObjectsBtn">getObjects</button>
     <button type="" id="getObjectMeasurementDataBtn">getObjectMeasurementData</button>
     <button type="" id="startMockEmergencyBtn">startMockEmergency</button>
+    <button type="" id="resetBtn">reset</button>
+    <button type="" id="getCurrentObjectRegistrationSocketBtn">getCurrentObjectRegistrationSocket</button>
+    <button type="" id="getObjectDataBtn">getObjectData</button>
     <button type="">Stop</button>
     <script>
       const executePlannedMeasurementBtn = document.getElementById('executePlannedMeasurementBtn');
-      const getListOfObjectsBtn = document.getElementById('getListOfObjectsBtn');
+      const getObjectsBtn = document.getElementById('getObjectsBtn');
       const getObjectMeasurementDataBtn = document.getElementById('getObjectMeasurementDataBtn');
       const startMockEmergencyBtn = document.getElementById('startMockEmergencyBtn');
       const objectIdField = document.getElementById('objectIdField');
+      const resetBtn = document.getElementById('resetBtn');
+      const getCurrentObjectRegistrationSocketBtn = document.getElementById('getCurrentObjectRegistrationSocketBtn');
+      const getObjectDataBtn = document.getElementById('getObjectDataBtn');
+      let socket;
+
+      function initWebSocket() {
+        socket = new WebSocket('ws://localhost:3000');
+
+        socket.addEventListener('open', () => {
+          console.log('WebSocket connection established');
+        });
+
+        socket.addEventListener('message', (event) => {
+          console.log(event);
+          let data = JSON.parse(event.data);
+
+          switch (data.type){
+            case "executePlannedMeasurement":
+              console.log("", data.data);
+              break;
+            case "getObjects":
+              console.log("", data.data);
+              break;
+            case "getObjectMeasurementData":
+              console.log("", data.data);
+              break;
+            case "startMockEmergency":
+              console.log("", data.data);
+              break;
+            case "getCurrentObjectRegistrationSocket":
+              console.log("", data.data);
+              break;
+            case "getObjectData":
+              console.log("", data.data);
+              break;
+            default:
+              console.log("Unknown message");
+          }
+        });
+      }
+
+      function sendMessage(messageType, data) {
+        const message = {
+          type: messageType,
+          data: data
+        };
+        socket.send(JSON.stringify(message));
+      }
+
+      getCurrentObjectRegistrationSocketBtn.addEventListener('click', () => {
+        sendMessage('getCurrentObjectRegistrationSocket', { object_id: objectIdField.value });
+      });
 
       executePlannedMeasurementBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/executePlannedMeasurement", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"object_id": objectIdField.value}),
-        }).then(data => {
-          console.log(data);
-        });
-      })
+        sendMessage('executePlannedMeasurement', { object_id: objectIdField.value });
+      });
 
-      getListOfObjectsBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/getListOfObjects", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"message": "getObjects"}),
-        }).then(data => {
-          console.log(data);
-        });
-      })
+      getObjectsBtn.addEventListener('click', () => {
+        sendMessage('getObjects', 'All');
+      });
 
       getObjectMeasurementDataBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/getObjectMeasurementData", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"object_name": ""}),
-        }).then(data => {
-          console.log(data);
-        });
-      })
+        sendMessage('getObjectMeasurementData', { object_id: objectIdField.value });
+      });
 
       startMockEmergencyBtn.addEventListener('click', () => {
-        fetch("http://localhost:3000/api/startMockEmergency", {
-          method: "POST",
-          mode: "cors",
-          cache: "no-cache",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({"object_id": objectIdField.value}),
-        }).then(data => {
-          console.log(data);
-        });
-      })
+        sendMessage('startMockEmergency', { id: objectIdField.value });
+      });
 
+      resetBtn.addEventListener('click', () => {
+        sendMessage('reset', { object_id: objectIdField.value });
+      });
+
+      getObjectDataBtn.addEventListener('click', () => {
+        sendMessage('getObjectData', { object_id: objectIdField.value });
+      });
+
+      initWebSocket(); // инициализация WebSocket при загрузке страницы
     </script>
   </body>
 </html>
+
