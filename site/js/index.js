@@ -93,6 +93,7 @@ class App {
     }
 
     handleObjectsChanges(newObjects) {
+        console.log(newObjects);
         // Сравниваем новые и старые объекты
         newObjects.forEach(newObj => {
             this.objects.forEach((oldObj, i) => {
