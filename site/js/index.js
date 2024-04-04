@@ -100,6 +100,12 @@ class App {
                     // Если без изменений
                     if (newObj.status === oldObj.status) return;
 
+                    if (this.objectItems[newObj.name]) {
+                        if (this.objectItems[newObj.name].self) {
+                            this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
+                        }
+                    }
+
                     // Обновляем объект
                     this.objects[i] = newObj;
                     // Создаем окно оповещений
@@ -123,7 +129,7 @@ class App {
                     div.addEventListener("click", (event) => {
                         if (event.target !== div) return;
                         if (this.objectItems[newObj.name]) {
-                            this.objectItems[newObj.name].restart();
+                            this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
                         } else {
                             this.objectItems[newObj.name] = new ObjectItem(newObj.name, newObj.status, this, newObj.timestamp);
                         }
@@ -169,6 +175,7 @@ class App {
 
         this.socket.onmessage = (event) => {
             let message = JSON.parse(event.data);
+            // console.log(message);
             switch (message.type) {
                 // Внутренние запросы
                 case "getObjects":
@@ -176,13 +183,13 @@ class App {
                     this.printObjects();
                     break;
                 case "objectsChanges":
-                    let newObjects = message.data.objects || [];
+                    let newObjects = message.data || [];
                     this.handleObjectsChanges(newObjects);
                     break;
                 case "objectDataChanges":
-                    if (this.objectItems[data.name]) {
-                        if (this.objectItems[data.current.name].self) {
-                            this.objectItems[obj.name].start();
+                    if (this.objectItems[message.data.name]) {
+                        if (this.objectItems[message.data.name].self) {
+                            this.objectItems[message.data.name].restart();
                         }
                     }
                     break;
@@ -211,7 +218,6 @@ class App {
                 return;
             }
             let interval;
-
             switch (query.type) {
                 case "deleteObject":
                     this.socket.send(JSON.stringify(query));

@@ -1,5 +1,5 @@
 const config = {
-    url: "ws://127.0.0.1:3000",
+    url: "ws://147.45.101.134:3000",
 }
 
 export default config;

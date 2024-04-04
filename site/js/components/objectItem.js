@@ -9,22 +9,31 @@ export default class ObjectItem {
         this.status = status;
         this.parent = parent;
         this.timestamp = timestamp;
+        this.timerInterval = null;
         this.filter = { year: "null", month: "null", day: "null" };
+        this.self = null;
 
         this.start();
     }
 
     async start() {
         // Это для перерисовки
-        if (this.self) this.self.remove();
+        document.querySelectorAll(`.${this.name}`).forEach((item, i) => {
+            item.remove();
+        });
+
+
+        clearInterval(this.timerInterval);
+
         // Получаем данные
         this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}});
         this.id = this.data.id;
         // Если данные есть
+        console.log(this.data);
         if (this.data && this.data.history) {
             const current = this.data.current || null;
 
-            this.data = this.data.history.sort((a, b) => {return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()});
+            this.data = this.data.history.sort((a, b) => {return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()});
 
             this.reference = this.data.pop();
             let end = new Date(this.reference.timestamp).getTime();
@@ -37,11 +46,11 @@ export default class ObjectItem {
         } else {
             this.data = [];
         }
-
         // Формируем страницу
         // Само окно
         this.self = document.createElement("ASIDE");
         this.self.classList.add("alertWindow");
+        this.self.classList.add(this.name);
         this.parent.self.appendChild(this.self);
 
         this.header = document.createElement("HEADER");
@@ -67,6 +76,7 @@ export default class ObjectItem {
         this.back.name = "back";
         this.back.classList.add("back");
         this.back.addEventListener('click', (event) => {
+            console.log(this.self);
             this.finish();
         });
 
@@ -270,9 +280,7 @@ export default class ObjectItem {
         this.startCheck.disabled = true;
 
         const result = await this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
-        if (result.status) {
-            this.start();
-        } else {
+        if (!result.status) {
             this.startCheck.disabled = false;
             alert(`Запустить проверку не удалось. Причина: ${result.reason}`);
         }
@@ -280,11 +288,23 @@ export default class ObjectItem {
 
     // Утилитки
     finish() {
-        this.self.remove();
+        document.querySelectorAll(`.${this.name}`).forEach((item, i) => {
+            item.remove();
+        });
     }
 
-    restart() {
-        this.parent.self.appendChild(this.self);
+    restart(name, status, timestamp) {
+        if (status === 0) {
+            this.timestamp = null;
+        } else {
+            this.timestamp = timestamp || this.timestamp;
+        }
+
+        if (status || status === 0) this.status = status;
+
+        this.name = name || this.name;
+
+        this.start();
     }
 
     getTimeString(start, end) {
@@ -298,8 +318,7 @@ export default class ObjectItem {
 
     startTimer() {
         if (!this.timestamp) return;
-
-        setInterval(() => {
+        this.timerInterval = setInterval(() => {
             const date = new Date().getTime();
             this.timer.textContent = this.getTimeString(this.timestamp, date);
         }, 1000);
