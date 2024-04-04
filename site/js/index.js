@@ -177,7 +177,7 @@ class App {
                     this.printObjects();
                     break;
                 case "objectsChanges":
-                    let newObjects = message.data.objects || [];
+                    let newObjects = message.data || [];
                     this.handleObjectsChanges(newObjects);
                     break;
                 case "objectDataChanges":
