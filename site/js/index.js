@@ -124,7 +124,7 @@ class App {
                     div.addEventListener("click", (event) => {
                         if (event.target !== div) return;
                         if (this.objectItems[newObj.name]) {
-                            this.objectItems[newObj.name].restart();
+                            this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
                         } else {
                             this.objectItems[newObj.name] = new ObjectItem(newObj.name, newObj.status, this, newObj.timestamp);
                         }

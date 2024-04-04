@@ -283,7 +283,10 @@ export default class ObjectItem {
         this.self.remove();
     }
 
-    restart() {
+    restart(name, status, timestamp) {
+        this.timestamp = timestamp || this.timestamp;
+        this.status    = status || this.status;
+        this.name      = name || this.name;
         // if (this.self) {
         //     this.parent.self.appendChild(this.self);
         // } else {
