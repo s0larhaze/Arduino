@@ -85,7 +85,9 @@ export default class ObjectItem {
         // Таймер
         this.timer.textContent = "00:00:00";
         this.timer.classList.add("timer");
-        this.startTimer();
+        if (this.timestamp) {
+            this.startTimer();
+        }
         // Поле с именем
         this.changeName.type = "text";
         this.changeName.name = "changeName";
@@ -309,7 +311,6 @@ export default class ObjectItem {
 
     startTimer() {
         if (!this.timestamp) return;
-
         setInterval(() => {
             const date = new Date().getTime();
             this.timer.textContent = this.getTimeString(this.timestamp, date);
