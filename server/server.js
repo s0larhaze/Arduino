@@ -265,6 +265,7 @@ async function measurementStartedDBOperation(object_id) {
     if (result) {
         connectedUsers.forEach((user, i) => {
             user.send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 1 } }))
+            getObjectData(object_id, '', 0);
             getChangedObjectsHandler();
         });
     } else {
@@ -309,6 +310,9 @@ function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
     updateMeasurements()
         .then(updateObjectStatus)
         .then(getChangedObjectsHandler)
+        .then(() => {
+            getObjectData(object_id, '', 0);
+        })
         .then(() => {
             sendObjectDataChanged(object_id);
         });
@@ -499,9 +503,12 @@ function getObjectData(object_id, name, ws) {
                 measurements[index]['status'] = 1;
                 history.push(measurements[index]);
             }
-            (current)
-                ? ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
-                : ws.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
+
+            connectedUsers.forEach(user => {
+                (current)
+                    ? user.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
+                    : user.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
+            })
         })
 }
 
