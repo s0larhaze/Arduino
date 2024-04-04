@@ -101,14 +101,11 @@ class App {
                     // Если без изменений
                     if (newObj.status === oldObj.status) return;
 
-                    console.log(newObj.status);
                     if (this.objectItems[newObj.name]) {
                         if (this.objectItems[newObj.name].self) {
                             this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
                         }
                     }
-
-
 
                     // Обновляем объект
                     this.objects[i] = newObj;
