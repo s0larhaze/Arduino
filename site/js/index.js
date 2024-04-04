@@ -101,6 +101,15 @@ class App {
                     // Если без изменений
                     if (newObj.status === oldObj.status) return;
 
+
+                    if (this.objectItems[newObj.name]) {
+                        if (this.objectItems[newObj.name].self) {
+                            this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
+                        }
+                    }
+
+
+
                     // Обновляем объект
                     this.objects[i] = newObj;
                     // Создаем окно оповещений
@@ -184,7 +193,7 @@ class App {
                 case "objectDataChanges":
                     if (this.objectItems[message.data.name]) {
                         if (this.objectItems[message.data.name].self) {
-                            this.objectItems[message.data.name].start();
+                            this.objectItems[message.data.name].restart();
                         }
                     }
                     break;

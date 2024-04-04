@@ -267,12 +267,10 @@ export default class ObjectItem {
     async startChecking() {
         if (!confirm("Вы уверены, что хотите начать проверку?")) return;
         // Блокируем кнопку начала проверки
-        // this.startCheck.disabled = true;
+        this.startCheck.disabled = true;
 
         const result = await this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
-        if (result.status) {
-            this.start();
-        } else {
+        if (!result.status) {
             this.startCheck.disabled = false;
             alert(`Запустить проверку не удалось. Причина: ${result.reason}`);
         }
