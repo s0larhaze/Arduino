@@ -101,7 +101,7 @@ class App {
                     // Если без изменений
                     if (newObj.status === oldObj.status) return;
 
-
+                    console.log(newObj.status);
                     if (this.objectItems[newObj.name]) {
                         if (this.objectItems[newObj.name].self) {
                             this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
@@ -222,7 +222,6 @@ class App {
                 return;
             }
             let interval;
-            console.log(query.type);
             switch (query.type) {
                 case "deleteObject":
                     this.socket.send(JSON.stringify(query));

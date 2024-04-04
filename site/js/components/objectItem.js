@@ -40,7 +40,6 @@ export default class ObjectItem {
             this.data = [];
         }
 
-        console.log(this);
         // Формируем страницу
         // Само окно
         this.self = document.createElement("ASIDE");
