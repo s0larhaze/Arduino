@@ -9,6 +9,7 @@ export default class ObjectItem {
         this.status = status;
         this.parent = parent;
         this.timestamp = timestamp;
+        this.timerInterval = null;
         this.filter = { year: "null", month: "null", day: "null" };
 
         this.start();
@@ -17,12 +18,18 @@ export default class ObjectItem {
     async start() {
         // Это для перерисовки
         if (this.self) this.self.remove();
+
+        // Тест
+        this.timerInterval = null;
         // Получаем данные
         this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}});
         this.id = this.data.id;
         // Если данные есть
         if (this.data && this.data.history) {
             const current = this.data.current || null;
+
+            console.log(this.data.history[0].timestamp);
+            console.log(this.data.history);
             this.data = this.data.history.sort((a, b) => {return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()});
 
             this.reference = this.data.pop();
@@ -82,9 +89,7 @@ export default class ObjectItem {
         // Таймер
         this.timer.textContent = "00:00:00";
         this.timer.classList.add("timer");
-        if (this.timestamp) {
-            this.startTimer();
-        }
+        this.startTimer();
         // Поле с именем
         this.changeName.type = "text";
         this.changeName.name = "changeName";
@@ -283,13 +288,13 @@ export default class ObjectItem {
     }
 
     restart(name, status, timestamp) {
-        if (!status) {
+        if (status === 0) {
             this.timestamp = null;
         } else {
             this.timestamp = timestamp || this.timestamp;
         }
-        if (status || status === 0) this.status = status || this.status;
 
+        if (status || status === 0) this.status = status;
         this.name = name || this.name;
         // if (this.self) {
         //     this.parent.self.appendChild(this.self);
@@ -309,7 +314,7 @@ export default class ObjectItem {
 
     startTimer() {
         if (!this.timestamp) return;
-        setInterval(() => {
+        this.timerInterval = setInterval(() => {
             const date = new Date().getTime();
             this.timer.textContent = this.getTimeString(this.timestamp, date);
         }, 1000);
