@@ -307,8 +307,16 @@ function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
     }
 
     updateMeasurements()
-        .then(updateObjectStatus);
-    // .then(getChangedObjectsHandler);
+        .then(updateObjectStatus)
+        .then(getChangedObjectsHandler)
+        .then(() => {
+            sendObjectDataChanged(object_id);
+        });
+
+}
+
+function getObjectDataChanges(object_id) {
+
 }
 
 function emergencyHandler(amperage, voltage, object_id, ws) {
@@ -359,7 +367,7 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
         })
     }
 
-    const chageObjectStatus = () => {
+    const changeObjectStatus = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`update objects set status = 2 where id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -368,7 +376,7 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
         })
     }
 
-    chageObjectStatus()
+    changeObjectStatus()
         .then(insertIntoEmergency)
         .then(getObjectName)
         .then(dbObjectName => {
@@ -770,7 +778,7 @@ async function getObjectsHandler(ws) {
                     if (currentObject.status === 1) {
                         let localObject = currentObject;
                         localObject.timestamp = await getLatestMeasurementTimestamp(currentObject.id);
-                        localObject.timestamp = new Date(localObject.timestamp[0].timestamp).getTime();
+                        localObject.timestamp = new Date(localObject.timestamp).getTime();
                         objects.push(localObject);
                     }
                     else if (currentObject.status === 2) {
@@ -794,6 +802,23 @@ async function getObjectsHandler(ws) {
         })
 }
 
+async function sendObjectDataChanged(object_parameter) {
+    let object_name = null;
+    if (typeof object_parameter === 'number') {
+        object_name = await getObjectNameById(object_parameter);
+        console.log("TYPEOF ", typeof object_parameter);
+    } else if (typeof object_parameter === 'string') {
+        object_name = object_parameter;
+        console.log("TYPEOF ", typeof object_parameter);
+    }
+    console.log("TYPEOFGENERAL ", typeof object_parameter);
+    console.log("OBJECT_PARAMETER ", typeof object_parameter);
+
+    connectedUsers.forEach(user => {
+        user.send(JSON.stringify({ type: "objectDataChanges", data: { name: object_name } }));
+    })
+}
+
 async function getChangedObjectsHandler() {
 
     // let objects = null;
@@ -808,12 +833,21 @@ async function getChangedObjectsHandler() {
     }
     const getLatestMeasurementTimestamp = (object_id) => {
         return new Promise((resolve, reject) => {
-            sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
+            sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id} order by start_timestamp desc`, (err, result) => {
                 if (err) reject(err);
                 resolve(result[0].start_timestamp);
             })
         });
     }
+    const getLatestEmergencyTimestamp = (object_id) => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`SELECT timestamp FROM emergency WHERE object_id = ${object_id} order by timestamp desc`, (err, result) => {
+                if (err) reject(err);
+                resolve(result[0].timestamp);
+            })
+        });
+    }
+
     const getData = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`SELECT id, name, status FROM objects`,
@@ -841,11 +875,31 @@ async function getChangedObjectsHandler() {
     // }
 
     let objects = await getData();
+    let objectsPlus = [];
 
+    for (let index = 0; index < objects.length; index++) {
+        let currentObject = objects[index];
+        if (currentObject.status === 1) {
+            let localObject = currentObject;
+            localObject.timestamp = await getLatestMeasurementTimestamp(currentObject.id);
+            localObject.timestamp = new Date(localObject.timestamp).getTime();
+            objectsPlus.push(localObject);
+        }
+        else if (currentObject.status === 2) {
+            let localObject = currentObject;
+            localObject.timestamp = await getLatestEmergencyTimestamp(currentObject.id);
+            localObject.timestamp = new Date(localObject.timestamp).getTime();
+            objectsPlus.push(localObject);
+        }
+        else {
+            let localObject = currentObject;
+            objectsPlus.push(localObject);
+        }
+    }
 
     for (let i = 0; i < connectedUsers.length; i++) {
         console.log(i, "OBJECTCHANGES");
-        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objects }))
+        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objectsPlus }))
     }
 
     // // Надо, чтобы возвращало результат
