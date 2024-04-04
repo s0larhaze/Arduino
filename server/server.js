@@ -1,3 +1,4 @@
+"use strict";
 // При проверке
 // Я отправляю тебе запрос на проверку.
 // Ты отправляешь ответ со статусом
@@ -63,12 +64,23 @@ function objectRegistrationHandler(object_id, ws) {
         return;
     }
 
-    checkIfObjectPresentInDB = () => {
+    const checkIfObjectPresentInDB = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`select count (*) as count from objects where id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
                 resolve(result[0].count);
             });
+        })
+    }
+
+    const createObjectInDB = () => {
+        sqlcon.query(`insert into objects (id, name, status) values
+    (
+      ${object_id},
+      'Безымянный объект',
+      0
+    )`, (err) => {
+            if (err) throw err;
         })
     }
 
@@ -83,23 +95,13 @@ function objectRegistrationHandler(object_id, ws) {
         .catch(err => {
             console.log("Cathed an error", err);
         })
-
-    createObjectInDB = () => {
-        sqlcon.query(`insert into objects (id, name, status) values
-    (
-      ${object_id},
-      'Безымянный объект',
-      0
-    )`, (err) => {
-            if (err) throw err;
-        })
-    }
 }
 
 function handleMessage(message, ws) {
     let message_json = null;
     let type = null;
     let data = null;
+    let object_id = null;
     try {
         message_json = JSON.parse(message);
         console.log("MESSAGE_JSON", message_json);
@@ -110,6 +112,7 @@ function handleMessage(message, ws) {
         console.log("No reasonable message.");
     }
     console.log("mtype", type);
+    let object_socket = null;
 
     switch (type) {
         // Adruino related message handling
@@ -117,6 +120,7 @@ function handleMessage(message, ws) {
             measurementStartedDBOperation(object_id);
             break;
         case 'arduinoFinishedMeasurement':
+            console.log("ARDUINODATA", data);
             measurementFinishedDBOperation(data.avg_current, data.avg_voltage, object_id);
             break;
         case 'arduinoEmergency':
@@ -142,11 +146,11 @@ function handleMessage(message, ws) {
             ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
             break;
         case 'startChecking':
-            // object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
-            // if (!object_socket) {
-            //   console.log("object_socket is not present.");
-            //   break;
-            // }
+            object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
+            if (!object_socket) {
+                console.log("object_socket is not present.");
+                break;
+            }
             // Объектов нема, вернуть
             startChecking(data.id, object_socket);
             break;
@@ -160,15 +164,24 @@ function handleMessage(message, ws) {
             let name = data.name;
             getObjectIdByName(name)
                 .then((result) => {
-                    object_id = result;
+                    let object_id = result;
                     console.log("OBJECT_ID = " + object_id);
-                    getObjectData(object_id, name, ws);
+                    console.log("_+_______________GETOBJECTDATAHERE");
+                    console.log("[[[[OBJECT_ID", object_id);
+                    console.log("[[[[name", data.name);
+                    getObjectData(object_id, data.name, ws);
                 })
             break;
         case 'startMockEmergency':
-            console.log(connectedObjects.keys());
-            object_socket = connectedObjects[object_id];
-            startMockEmergencyHandler(object_id, object_socket);
+            object_socket = connectedObjects[data.id];
+            for (let i = 0; i < connectedObjects.length; i++) {
+                console.log(i, connectedObjects[i]);
+            }
+            if (!object_socket) {
+                console.log("object_socket is not present.");
+                break;
+            }
+            startMockEmergencyHandler(object_socket);
             break;
         case 'clearData':
             clearData(data.id, data.name, ws);
@@ -184,6 +197,10 @@ function handleMessage(message, ws) {
     }
 }
 
+function startMockEmergencyHandler(object_socket) {
+    object_socket.send(JSON.stringify({ type: "startMockEmergency" }));
+}
+
 async function measurementStartedDBOperation(object_id) {
 
     if (!object_id) {
@@ -195,7 +212,7 @@ async function measurementStartedDBOperation(object_id) {
     let object_name = null;
 
     // Не возвращают промисы
-    insertRecordWithReferentialFlag = () => {
+    const insertRecordWithReferentialFlag = () => {
         console.log("Trying to insert with referential flag...");
         sqlcon.query(`
             insert into measurements (start_timestamp, object_id, isReferential)
@@ -205,7 +222,8 @@ async function measurementStartedDBOperation(object_id) {
                 console.log("Succesfully inserted.");
             })
     }
-    insertRecord = () => {
+
+    const insertRecord = () => {
         sqlcon.query(`
             insert into measurements (start_timestamp, object_id, isReferential)
             values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 0)`,
@@ -215,7 +233,7 @@ async function measurementStartedDBOperation(object_id) {
     }
 
     // Возвращают промисы
-    changeObjectStatus = () => {
+    const changeObjectStatus = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`UPDATE objects SET status = 1 WHERE id = '${object_id}'`, (err, result) => {
                 if (err) reject(err);
@@ -223,7 +241,8 @@ async function measurementStartedDBOperation(object_id) {
             })
         })
     }
-    checkIfRecordsExist = () => {
+
+    const checkIfRecordsExist = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
                 if (err) reject(err);
@@ -246,7 +265,7 @@ async function measurementStartedDBOperation(object_id) {
     if (result) {
         connectedUsers.forEach((user, i) => {
             user.send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 1 } }))
-            getChangedObjectsHandler(user);
+            getChangedObjectsHandler();
         });
     } else {
         connectedUsers.forEach((user, i) => {
@@ -255,7 +274,7 @@ async function measurementStartedDBOperation(object_id) {
                 data: {
                     name: object_name,
                     status: 0,
-                    reason: "Все пошло по пизде"
+                    reason: "Ошибка измерения"
                 }
             }));
         });
@@ -264,13 +283,32 @@ async function measurementStartedDBOperation(object_id) {
 
 // end_timestamp как тут нулить при отправке
 function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
-    sqlcon.query(`update measurements set
+
+    const updateMeasurements = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`update measurements set
     avg_current = ${avg_current},
     avg_voltage = ${avg_voltage},
     end_timestamp = '${moment().format('YYYY-MM-DD HH:mm:ss')}'
-    where object_id = ${object_id} and end_timestamp = '0000-00-00 00:00:00'`, (err) => {
-        if (err) throw err;
-    })
+    where object_id = ${object_id} and end_timestamp is NULL`, (err) => {
+                if (err) reject(err);
+                resolve();
+            })
+        })
+    }
+
+    const updateObjectStatus = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`update objects set status = 0 where id = ${object_id}`, err => {
+                if (err) reject(err);
+                resolve();
+            })
+        })
+    }
+
+    updateMeasurements()
+        .then(updateObjectStatus);
+    // .then(getChangedObjectsHandler);
 }
 
 function emergencyHandler(amperage, voltage, object_id, ws) {
@@ -278,6 +316,57 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
     let object_name = '';
     let current = null;
     let history = [];
+
+    const insertIntoEmergency = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values
+      (
+        ${current},
+        ${voltage},
+        '${moment().format('YYYY-MM-DD HH:mm:ss')}',
+        ${object_id}
+      )`, err => {
+                if (err) reject(err);
+                resolve();
+            })
+        })
+    }
+
+    const getObjectName = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
+                if (err) reject(err);
+                resolve(result);
+            })
+        });
+    }
+
+    const getEmergencyData = (object_name) => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp asc;`, (err, result) => {
+                if (err) reject(err);
+                resolve(result);
+            });
+        })
+    }
+
+    const getMeasurementsData = (object_name) => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
+                if (err) reject(err);
+                resolve(result);
+            });
+        })
+    }
+
+    const chageObjectStatus = () => {
+        return new Promise((resolve, reject) => {
+            sqlcon.query(`update objects set status = 2 where id = ${object_id}`, (err, result) => {
+                if (err) reject(err);
+                resolve(result);
+            })
+        })
+    }
 
     chageObjectStatus()
         .then(insertIntoEmergency)
@@ -307,56 +396,6 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
             }
         })
 
-    insertIntoEmergency = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`insert into emergency (current, voltage, timestamp, object_id) values
-      (
-        ${current},
-        ${voltage},
-        '${moment().format('YYYY-MM-DD HH:mm:ss')}',
-        ${object_id}
-      )`, err => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
-    }
-
-    getObjectName = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        });
-    }
-
-    getEmergencyData = (object_name) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp asc;`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            });
-        })
-    }
-
-    getMeasurementsData = (object_name) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            });
-        })
-    }
-
-    chageObjectStatus = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`update set status = 2 where id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
-    }
 }
 
 // Что это?
@@ -370,14 +409,18 @@ function emergencyStoppedHandler(object_id) {
     })
 }
 
-function getObjectData(object_id, name, ws) {
-    object_name = '';
-    current = null;
-    object_status = null;
-    console.log(object_id);
-    history = [];
+function BRUH() {
+    console.log("YOUVE ENTERED BRUH");
+}
 
-    getObjectName = () => {
+function getObjectData(object_id, name, ws) {
+    let object_name = '';
+    let current = null;
+    let object_status = null;
+    console.log(object_id);
+    let history = [];
+
+    const getObjectName = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
                 if (err) reject(err);
@@ -386,7 +429,7 @@ function getObjectData(object_id, name, ws) {
         });
     }
 
-    getEmergencyData = (object_name) => {
+    const getEmergencyData = (object_name) => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp asc;`, (err, result) => {
                 if (err) reject(err);
@@ -395,7 +438,7 @@ function getObjectData(object_id, name, ws) {
         })
     }
 
-    getMeasurementsData = (object_name) => {
+    const getMeasurementsData = (object_name) => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
                 if (err) reject(err);
@@ -405,7 +448,7 @@ function getObjectData(object_id, name, ws) {
         })
     }
 
-    getObjectStatus = () => {
+    const getObjectStatus = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`select status from objects where id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -426,14 +469,17 @@ function getObjectData(object_id, name, ws) {
         .then(emergencies => {
             if (object_status === 2) {
                 current = emergencies[0] || null;
+                current.timestamp = (current === null ? null : new Date(current.timestamp).getTime())
 
                 for (let index = 1; index < emergencies.length; index++) {
                     emergencies[index]['status'] = 2;
+                    emergencies[index].timestamp = (emergencies[index] === null ? null : new Date(emergencies[index].timestamp).getTime())
                     history.push(emergencies[index]);
                 }
             } else {
                 for (let index = 0; index < emergencies.length; index++) {
                     emergencies[index]['status'] = 2;
+                    emergencies[index].timestamp = (emergencies[index] === null ? null : new Date(emergencies[index].timestamp).getTime())
                     history.push(emergencies[index]);
                 }
             }
@@ -446,8 +492,8 @@ function getObjectData(object_id, name, ws) {
                 history.push(measurements[index]);
             }
             (current)
-                ? ws.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
-                : ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }));
+                ? ws.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
+                : ws.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
         })
 }
 
@@ -470,7 +516,7 @@ function clearData(object_id, object_name, ws) {
         return;
     }
 
-    createArchiveDBQuery = () => {
+    const createArchiveDBQuery = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query("create database if not exists archive_battery", (err, result) => {
                 if (err) reject(err);
@@ -479,7 +525,7 @@ function clearData(object_id, object_name, ws) {
         });
     };
 
-    useArchiveBatteryQuery = () => {
+    const useArchiveBatteryQuery = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query("use archive_battery", (err, result) => {
                 if (err) reject(err);
@@ -488,10 +534,10 @@ function clearData(object_id, object_name, ws) {
         });
     };
 
-    createArchiveTablesQuery = () => {
+    const createArchiveTablesQuery = () => {
         return new Promise((resolve, reject) => {
 
-            createObjectsTable = () => {
+            const createObjectsTable = () => {
                 return new Promise((resolve, reject) => {
                     sqlcon.query(`create table if not exists objects
         (
@@ -506,7 +552,7 @@ function clearData(object_id, object_name, ws) {
                 })
             }
 
-            createArchiveMeasurementsTable = () => {
+            const createArchiveMeasurementsTable = () => {
                 return new Promise((resolve, reject) => {
                     sqlcon.query(`create table if not exists measurements
           (
@@ -524,7 +570,7 @@ function clearData(object_id, object_name, ws) {
                 })
             }
 
-            createArchiveEmergencyTable = () => {
+            const createArchiveEmergencyTable = () => {
                 return new Promise((resolve, reject) => {
                     sqlcon.query(`create table if not exists emergency
           (
@@ -540,8 +586,8 @@ function clearData(object_id, object_name, ws) {
             }
 
             createObjectsTable()
-                .then(createMeasurementsTable)
-                .then(createEmergencyTable)
+                .then(createArchiveMeasurementsTable)
+                .then(createArchiveEmergencyTable)
                 .then(() => {
                     resolve();
                 })
@@ -552,7 +598,7 @@ function clearData(object_id, object_name, ws) {
         });
     };
 
-    dumpMeasurementRecords = () => {
+    const dumpMeasurementRecords = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`insert into archive_battery.measurements select * from battery.measurements where object_id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -561,7 +607,7 @@ function clearData(object_id, object_name, ws) {
         })
     }
 
-    dumpEmergencyRecords = () => {
+    const dumpEmergencyRecords = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`insert into archive_battery.emergency select * from battery.emergency where object_id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -570,7 +616,7 @@ function clearData(object_id, object_name, ws) {
         })
     }
 
-    resetMeasurementRecords = () => {
+    const resetMeasurementRecords = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`delete from measurements where object_id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -579,7 +625,7 @@ function clearData(object_id, object_name, ws) {
         })
     }
 
-    resetEmergencyRecords = () => {
+    const resetEmergencyRecords = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`delete from emergency where object_id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -622,7 +668,7 @@ function deleteObject(object_id, object_name, ws) {
     console.log("OBJECT_ID", object_id);
     console.log("OBJECT_IDTYPEOF", typeof object_id);
 
-    useBatteryQuery = () => {
+    const useBatteryQuery = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`use battery`, (err, result) => {
                 if (err) reject(err);
@@ -631,7 +677,7 @@ function deleteObject(object_id, object_name, ws) {
         });
     }
 
-    addObjectToArchiveDB = () => {
+    const addObjectToArchiveDB = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`INSERT INTO archive_battery.objects SELECT * FROM battery.objects WHERE id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -640,7 +686,7 @@ function deleteObject(object_id, object_name, ws) {
         });
     }
 
-    deleteObjectFromDB = () => {
+    const deleteObjectFromDB = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`DELETE FROM objects WHERE id = ${object_id}`, (err, result) => {
                 if (err) {
@@ -684,9 +730,9 @@ function startChecking(object_id, object_socket) {
 
 async function getObjectsHandler(ws) {
 
-    objects = [];
+    let objects = [];
 
-    getObjectData = () => {
+    const BRUH123 = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`SELECT id, name, status
                               FROM objects`, (err, result) => {
@@ -697,16 +743,16 @@ async function getObjectsHandler(ws) {
         })
     }
 
-    getLatestMeasurementTimestamp = (object_id) => {
+    const getLatestMeasurementTimestamp = (object_id) => {
         return new Promise((resolve, reject) => {
-            sqlcon.query(`select start_timestamp as timestamp from measurements where object_id = ${object_id} order by start_timestamp desc`, (err, result) => {
+            sqlcon.query(`select start_timestamp as timestamp from measurements where object_id = ${object_id} order by timestamp desc`, (err, result) => {
                 if (err) reject(err);
-                resolve(result);
+                resolve(new Date(result[0].timestamp).getTime());
             })
         })
     }
 
-    getLatestEmergencyTimestamp = (object) => {
+    const getLatestEmergencyTimestamp = (object_id) => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`select timestamp from emergency where object_id = ${object_id} order by timestamp desc`, (err, result) => {
                 if (err) reject(err);
@@ -715,7 +761,7 @@ async function getObjectsHandler(ws) {
         })
     }
 
-    getObjectData()
+    BRUH123()
         .then(result => {
             return new Promise(async (response, reject) => {
                 console.log(result);
@@ -723,12 +769,14 @@ async function getObjectsHandler(ws) {
                     let currentObject = result[index];
                     if (currentObject.status === 1) {
                         let localObject = currentObject;
-                        localObject.timestamp = await getLatestMeasurementTimestamp(currentObject);
+                        localObject.timestamp = await getLatestMeasurementTimestamp(currentObject.id);
+                        localObject.timestamp = new Date(localObject.timestamp[0].timestamp).getTime();
                         objects.push(localObject);
                     }
                     else if (currentObject.status === 2) {
                         let localObject = currentObject;
-                        localObject.timestamp = await getLatestEmergencyTimestamp(currentObject);
+                        localObject.timestamp = await getLatestEmergencyTimestamp(currentObject.id);
+                        localObject.timestamp = new Date(localObject.timestamp[0].timestamp).getTime();
                         objects.push(localObject);
                     }
                     else {
@@ -746,11 +794,11 @@ async function getObjectsHandler(ws) {
         })
 }
 
-async function getChangedObjectsHandler(ws) {
+async function getChangedObjectsHandler() {
 
-    objects = null;
+    // let objects = null;
 
-    getObjectStatus = () => {
+    const getObjectStatus = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`SELECT status FROM objects WHERE id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -758,7 +806,7 @@ async function getChangedObjectsHandler(ws) {
             })
         });
     }
-    getLatestMeasurementTimestamp = (object_id) => {
+    const getLatestMeasurementTimestamp = (object_id) => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -766,7 +814,7 @@ async function getChangedObjectsHandler(ws) {
             })
         });
     }
-    getData = () => {
+    const getData = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`SELECT id, name, status FROM objects`,
                 (err, result) => {
@@ -776,32 +824,38 @@ async function getChangedObjectsHandler(ws) {
         });
     }
     // Что это?
-    processObjects = (objects) => {
-        return new Promise((resolve, reject) => {
-            for (let i = 0; i < objects.length; i++) {
-                localObjects.push(objects[i]);
-                if (localObjects[i].status === 1) {
-                    let localObjects = [];
-                    getLatestMeasurementTimestamp(localObjects[i].id)
-                        .then(start_timestamp => {
-                            localObjects[i]['timestamp'] = start_timestamp;
-                            console.log("PROCESSLOCALOBJECTS", localObjects);
-                        })
-                }
-            }
-        })
-    }
+    // const processObjects = (objects) => {
+    //     return new Promise((resolve, reject) => {
+    //         for (let i = 0; i < objects.length; i++) {
+    //             localObjects.push(objects[i]);
+    //             if (localObjects[i].status === 1) {
+    //                 let localObjects = [];
+    //                 getLatestMeasurementTimestamp(localObjects[i].id)
+    //                     .then(start_timestamp => {
+    //                         localObjects[i]['timestamp'] = start_timestamp;
+    //                         console.log("PROCESSLOCALOBJECTS", localObjects);
+    //                     })
+    //             }
+    //         }
+    //     })
+    // }
 
     let objects = await getData();
 
-    // Надо, чтобы возвращало результат
-    processObjects(objects)
-        .then(localObjects => {
-            console.log("OBJECTS", localObjects);
-            for (let i = 0; i < connectedUsers.length; i++) {
-                connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: localObjects }))
-            }
-        })
+
+    for (let i = 0; i < connectedUsers.length; i++) {
+        console.log(i, "OBJECTCHANGES");
+        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objects }))
+    }
+
+    // // Надо, чтобы возвращало результат
+    // processObjects(objects)
+    //     .then(localObjects => {
+    //         console.log("OBJECTS", localObjects);
+    //         for (let i = 0; i < connectedUsers.length; i++) {
+    //             connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: localObjects }))
+    //         }
+    //     })
 }
 
 function getObjectIdByName(name) {
@@ -846,7 +900,7 @@ const sqlcon = mysql.createConnection({
     password: "root",
 })
 
-SQLConnectQuery = () => {
+const SQLConnectQuery = () => {
     return new Promise((resolve, reject) => {
         sqlcon.connect((err, result) => {
             if (err) reject(err);
@@ -855,7 +909,7 @@ SQLConnectQuery = () => {
     });
 };
 
-createDBQuery = () => {
+const createDBQuery = () => {
     return new Promise((resolve, reject) => {
         sqlcon.query("create database if not exists battery", (err, result) => {
             if (err) reject(err);
@@ -864,7 +918,7 @@ createDBQuery = () => {
     });
 };
 
-useBatteryQuery = () => {
+const useBatteryQuery = () => {
     return new Promise((resolve, reject) => {
         sqlcon.query("use battery", (err, result) => {
             if (err) reject(err);
@@ -873,10 +927,10 @@ useBatteryQuery = () => {
     });
 };
 
-createTablesQuery = () => {
+const createTablesQuery = () => {
     return new Promise((resolve, reject) => {
 
-        createObjectsTable = () => {
+        const createObjectsTable = () => {
             return new Promise((resolve, reject) => {
                 sqlcon.query(`create table if not exists objects
         (
@@ -890,7 +944,7 @@ createTablesQuery = () => {
             })
         }
 
-        createMeasurementsTable = () => {
+        const createMeasurementsTable = () => {
             return new Promise((resolve, reject) => {
                 sqlcon.query(`create table if not exists measurements
           (
@@ -908,7 +962,7 @@ createTablesQuery = () => {
             })
         }
 
-        createEmergencyTable = () => {
+        const createEmergencyTable = () => {
             return new Promise((resolve, reject) => {
                 sqlcon.query(`create table if not exists emergency
           (
