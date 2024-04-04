@@ -284,11 +284,11 @@ export default class ObjectItem {
     }
 
     restart() {
-        if (this.self) {
-            this.parent.self.appendChild(this.self);
-        } else {
+        // if (this.self) {
+        //     this.parent.self.appendChild(this.self);
+        // } else {
             this.start();
-        }
+        // }
     }
 
     getTimeString(start, end) {
