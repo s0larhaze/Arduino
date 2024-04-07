@@ -130,7 +130,7 @@ class App {
 
             let objItem = document.createElement("li");
                 objItem.classList.add("objectsItem");
-                objItem.id = obj.id;
+                objItem.id = "o" + obj.id;
 
             let objName = document.createElement("H2");
             objName.textContent = obj.name;
@@ -156,10 +156,10 @@ class App {
 
             // При клике создаем окошко с данными об объекте поверх главного экрана
             objItem.addEventListener("click", (event) => {
-                if (this.objectItems[obj.name]) {
-                    this.objectItems[obj.name].restart();
+                if (this.objectItems[obj.id]) {
+                    this.objectItems[obj.id].restart();
                 } else {
-                    this.objectItems[obj.name] = new ObjectItem(obj.id, obj.name, obj.status, this, obj.timestamp);
+                    this.objectItems[obj.id] = new ObjectItem(obj.id, obj.name, obj.status, this, obj.timestamp);
                 }
             });
 
@@ -181,8 +181,7 @@ class App {
             if (obj.status !== 1) return;
             let objItem = document.createElement("li");
             objItem.classList.add("objectsItem");
-            objItem.id = obj.name;
-
+            objItem.id = "o" + obj.id;
 
             let objName = document.createElement("H2");
             objName.textContent = obj.name;
@@ -208,10 +207,10 @@ class App {
 
             // При клике создаем окошко с данными об объекте поверх главного экрана
             objItem.addEventListener("click", (event) => {
-                if (this.objectItems[obj.name]) {
-                    this.objectItems[obj.name].restart();
+                if (this.objectItems[obj.id]) {
+                    this.objectItems[obj.id].restart();
                 } else {
-                    this.objectItems[obj.name] = new ObjectItem(obj.id, obj.name, obj.status, this, obj.timestamp);
+                    this.objectItems[obj.id] = new ObjectItem(obj.id, obj.name, obj.status, this, obj.timestamp);
                 }
             });
 
@@ -233,8 +232,7 @@ class App {
             if (obj.status !== 0) return;
             let objItem = document.createElement("li");
             objItem.classList.add("objectsItem");
-            objItem.id = obj.name;
-
+            objItem.id = "o" + obj.id;
 
             let objName = document.createElement("H2");
             objName.textContent = obj.name;
@@ -251,10 +249,10 @@ class App {
 
             // При клике создаем окошко с данными об объекте поверх главного экрана
             objItem.addEventListener("click", (event) => {
-                if (this.objectItems[obj.name]) {
-                    this.objectItems[obj.name].restart();
+                if (this.objectItems[obj.id]) {
+                    this.objectItems[obj.id].restart();
                 } else {
-                    this.objectItems[obj.name] = new ObjectItem(obj.id, obj.name, obj.status, this);
+                    this.objectItems[obj.id] = new ObjectItem(obj.id, obj.name, obj.status, this);
                 }
             });
 
@@ -262,6 +260,7 @@ class App {
             this.container.appendChild(objItem);
         });
     }
+
     handleObjectsChanges(newObjects) {
         console.log(newObjects);
         // Сравниваем новые и старые объекты
@@ -271,9 +270,9 @@ class App {
                     // Если без изменений
                     if (newObj.status === oldObj.status) return;
 
-                    if (this.objectItems[newObj.name]) {
-                        if (this.objectItems[newObj.name].self) {
-                            this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
+                    if (this.objectItems[newObj.id]) {
+                        if (this.objectItems[newObj.id].self) {
+                            this.objectItems[newObj.id].restart(newObj.name, newObj.status, newObj.timestamp);
                         }
                     }
 
@@ -299,10 +298,10 @@ class App {
                     // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
                     div.addEventListener("click", (event) => {
                         if (event.target !== div) return;
-                        if (this.objectItems[newObj.name]) {
-                            this.objectItems[newObj.name].restart(newObj.name, newObj.status, newObj.timestamp);
+                        if (this.objectItems[newObj.id]) {
+                            this.objectItems[newObj.id].restart(newObj.name, newObj.status, newObj.timestamp);
                         } else {
-                            this.objectItems[newObj.name] = new ObjectItem(newObj.id, newObj.name, newObj.status, this, newObj.timestamp);
+                            this.objectItems[newObj.id] = new ObjectItem(newObj.id, newObj.name, newObj.status, this, newObj.timestamp);
                         }
                         div.remove();
                     });
@@ -358,9 +357,9 @@ class App {
                     this.handleObjectsChanges(newObjects);
                     break;
                 case "objectDataChanges":
-                    if (this.objectItems[message.data.name]) {
-                        if (this.objectItems[message.data.name].self) {
-                            this.objectItems[message.data.name].restart();
+                    if (this.objectItems[message.data.id]) {
+                        if (this.objectItems[message.data.id].self) {
+                            this.objectItems[message.data.id].restart();
                         }
                     }
                     break;
@@ -371,7 +370,8 @@ class App {
                 case "startChecking":
                 case "changeObjectName":
                     this.waitingObjects.forEach((item, i) => {
-                        if (item.name !== message.data.name) return;
+                        console.log(item,  message.data.id);
+                        if (item.id !== message.data.id) return;
                         item.state = 1;
                         item.respons = message.data;
                     });
@@ -393,11 +393,11 @@ class App {
                 case "deleteObject":
                     this.socket.send(JSON.stringify(query));
 
-                    this.waitingObjects.push({ name: query.data.name, respons: null, state: 0 });
-                    this.responses[query.name] = null;
+                    this.waitingObjects.push({ name: query.data.name, id: query.data.id, respons: null, state: 0 });
+                    this.responses[query.data.id] = null;
                     interval = setInterval(() => {
                         this.waitingObjects.forEach((item, i) => {
-                            if (item.name !== query.data.name) return;
+                            if (item.id !== query.data.id) return;
                             if (item.state) {
                                 clearInterval(interval);
                                 resolve(item.respons);
@@ -414,11 +414,11 @@ class App {
                 case "changeObjectName":
                     this.socket.send(JSON.stringify(query));
 
-                    this.waitingObjects.push({ name: query.data.name, respons: null, state: 0 });
-                    this.responses[query.name] = null;
+                    this.waitingObjects.push({ name: query.data.name, id: query.data.id, respons: null, state: 0 });
+                    this.responses[query.id] = null;
                     interval = setInterval(() => {
                         this.waitingObjects.forEach((item, i) => {
-                            if (item.name !== query.data.name) return;
+                            if (item.id !== query.data.id) return;
                             if (item.state) {
                                 clearInterval(interval);
                                 resolve(item.respons);

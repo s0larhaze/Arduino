@@ -25,7 +25,7 @@ export default class ObjectItem {
             type: 'getObjectData',
             data: {
                 name: this.name,
-                id: this.id
+                id: this.id,
             }
         });
 
@@ -83,7 +83,6 @@ export default class ObjectItem {
         this.back.name = "back";
         this.back.classList.add("back");
         this.back.addEventListener('click', (event) => {
-            console.log(this.self);
             this.finish();
         });
 
@@ -209,11 +208,32 @@ export default class ObjectItem {
         if (!confirm(`Вы уверены, что хотите изменить имя объекта ${this.name} на ${name}`)) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
-        const result = await this.parent.handleQuery({ type: "changeObjectName", data: {name: this.name, new_name: name, id: this.id}});
-
+        const result = await this.parent.handleQuery({
+            type: "changeObjectName",
+            data: {
+                name: this.name,
+                new_name: name,
+                id: this.id
+            }
+        });
         if (result.status) {
-            this.name = name;
-            this.start();
+            // Обновляем данные в родителе
+            this.parent.objects.forEach((item, i) => {
+                if (item.id === this.id) {
+                    item.name = name;
+                }
+            });
+            // Просто меняем имя объекта в родителе
+            this.parent.self.querySelector(`#o${this.id}`).querySelector('h2').textContent = name;
+
+
+            // Обновляем данные в объекте
+            this.name             = name;
+            this.changeName.value = name;
+
+            this.fillSelect();
+            this.fillTableHead();
+            this.fillTableBody(this.data);
         } else {
             alert(`Изменить имя не удалось. Причина: ${result.reason}`);
         }
@@ -243,9 +263,31 @@ export default class ObjectItem {
         const result = await this.parent.handleQuery({ type: "deleteObject", data: {name: this.name, id: this.id}});
 
         if (result.status) {
+            // Удаляем объект из всех мест, где он может быть
+            delete this.parent.objectItems[this.id];
+            this.parent.objects.forEach((item, i) => {
+                if (item.id === this.id) {
+                    delete this.parent.objects[i];
+                    return;
+                }
+            });
+            this.parent.self.querySelector(`#o${this.id}`).remove();
+
             this.finish();
         } else {
             alert(`Удалить объект не удалось. Причина: ${result.reason}`);
+        }
+    }
+
+    async startChecking() {
+        if (!confirm("Вы уверены, что хотите начать проверку?")) return;
+        // Блокируем кнопку начала проверки
+        this.startCheck.disabled = true;
+
+        const result = await this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
+        if (!result.status) {
+            this.startCheck.disabled = false;
+            alert(`Запустить проверку не удалось. Причина: ${result.reason}`);
         }
     }
 
@@ -294,23 +336,9 @@ export default class ObjectItem {
         })
     }
 
-    async startChecking() {
-        if (!confirm("Вы уверены, что хотите начать проверку?")) return;
-        // Блокируем кнопку начала проверки
-        this.startCheck.disabled = true;
-
-        const result = await this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
-        if (!result.status) {
-            this.startCheck.disabled = false;
-            alert(`Запустить проверку не удалось. Причина: ${result.reason}`);
-        }
-    }
-
     // Утилитки
     finish() {
-        document.querySelectorAll(`.${this.name}`).forEach((item, i) => {
-            item.remove();
-        });
+        this.self.remove();
     }
 
     restart(name, status, timestamp) {
@@ -563,8 +591,9 @@ export default class ObjectItem {
 
     fillTableHead() {
         // Если таблица уже существует
-        if (this.table.querySelector('THEAD')) this.table.querySelector('THEAD').remove();
-        const thead = document.createElement("THEAD");
+        if (this.thead) this.thead.remove();
+
+        this.thead = document.createElement("THEAD");
         const tr = document.createElement("TR");
         const th = document.createElement("TH");
         const voltage = document.createElement("TD");
@@ -584,8 +613,8 @@ export default class ObjectItem {
         workingHours.textContent = "Время работы";
         status.textContent = "Статус";
 
-        this.table.appendChild(thead);
-        thead.appendChild(tr);
+        this.table.appendChild(this.thead);
+        this.thead.appendChild(tr);
         tr.appendChild(th);
         tr.appendChild(voltage);
         tr.appendChild(current);
@@ -600,9 +629,9 @@ export default class ObjectItem {
 
     fillTableBody(data) {
         // Если таблица уже существует
-        if (this.table.querySelector('tbody')) this.table.querySelector('tbody').remove();
+        if (this.tbody) this.tbody.remove();
 
-        const tbody = document.createElement("TBODY");
+        this.tbody = document.createElement("TBODY");
         data.forEach((item, i) => {
             const workingHours = document.createElement("TD");
             const degradation  = document.createElement("TD");
@@ -695,8 +724,8 @@ export default class ObjectItem {
 
             status.textContent = (item.status === 2) ? "Тревога" : "Проверка";
 
-            this.table.appendChild(tbody);
-            tbody.appendChild(tr);
+            this.table.appendChild(this.tbody);
+            this.tbody.appendChild(tr);
             tr.appendChild(th);
             tr.appendChild(voltage);
             tr.appendChild(current);
