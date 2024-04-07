@@ -401,7 +401,7 @@ function objectRegistrationHandler(object_id, ws) {
     }
 
     async function checkIfObjectPresentInDB() {
-        const sql = `SELECT COUNT (*) as count FROM objects WHERE id = ?`
+        const sql = `SELECT COUNT(*) as count FROM objects WHERE id = ?`
         const result = await executeQuery(sql, [object_id]);
 
         return result[0].count;

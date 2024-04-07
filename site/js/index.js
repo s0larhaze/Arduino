@@ -1,4 +1,4 @@
-import ObjectItem from "./components/objectItem.js";
+import ObjectItem from "./components/objectitem.js";
 import config     from "./conf.js";
 
 import "../css/style.css";
@@ -370,7 +370,6 @@ class App {
                 case "startChecking":
                 case "changeObjectName":
                     this.waitingObjects.forEach((item, i) => {
-                        console.log(item,  message.data.id);
                         if (item.id !== message.data.id) return;
                         item.state = 1;
                         item.respons = message.data;
