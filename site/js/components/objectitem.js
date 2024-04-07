@@ -4,45 +4,52 @@ import objectExporter from "../libs/index.js";
 // startChecking ожидает, что придет объект с полями: status bool и (reason при ошибке)
 // deleteObject ожидает, что придет объект с полями: status bool и (reason при ошибке)
 export default class ObjectItem {
-    constructor(name, status, parent, timestamp = null) {
-        this.name = name;
-        this.status = status;
-        this.parent = parent;
-        this.timestamp = timestamp;
+    constructor(id, name, status, parent, timestamp = null) {
+        this.id            = id;
+        this.self          = null;
+        this.name          = name;
+        this.status        = status;
+        this.parent        = parent;
+        this.filter        = { year: "null", month: "null", day: "null" };
+        this.timestamp     = timestamp;
         this.timerInterval = null;
-        this.filter = { year: "null", month: "null", day: "null" };
-        this.self = null;
 
         this.start();
     }
 
     async start() {
-        // Это для перерисовки
-        document.querySelectorAll(`.${this.name}`).forEach((item, i) => {
-            item.remove();
-        });
-
-
         clearInterval(this.timerInterval);
 
         // Получаем данные
-        this.data = await this.parent.handleQuery({ type: 'getObjectData', data: {name: this.name}});
-        this.id = this.data.id;
+        this.data = await this.parent.handleQuery({
+            type: 'getObjectData',
+            data: {
+                name: this.name,
+                id: this.id
+            }
+        });
+
         // Если данные есть
-        console.log(this.data);
-        if (this.data && this.data.history) {
-            const current = this.data.current || null;
+        if (this.data && this.data.history.length) {
+            this.current = this.data.current || null;
 
-            this.data = this.data.history.sort((a, b) => {return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()});
+            this.data = this.data.history.sort((a, b) => {
+                return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+            });
 
-            this.reference = this.data.pop();
+            this.reference = this.data.find((el) => el.isReferential === 1);
+
+            // Рассчитываем время работы
             let end = new Date(this.reference.timestamp).getTime();
             let start = new Date(this.reference.start_timestamp).getTime();
             if (!!(end && start)) {
                 this.reference.workingHours = (end - start) / 1000 / 60;
             }
-            this.data.unshift(this.reference); // Это элемент с самой ранней временной меткой. Предполагается, что это первое измерение и оно же эталон
-            if (current) this.data.unshift(current); // Это первый элемент, который существует только при тревоге
+
+            // Добавляем в список образцовое измерение
+            this.data.unshift(this.reference);
+            // И если есть, текущее измерение по тревоге
+            if (this.current) this.data.unshift(this.current);
         } else {
             this.data = [];
         }
@@ -219,7 +226,11 @@ export default class ObjectItem {
         const result = await this.parent.handleQuery({ type: "clearData", data: {name: this.name, id: this.id}});
 
         if (result.status) {
-            this.start();
+            this.data = [];
+
+            this.fillSelect();
+            this.fillTableHead();
+            this.fillTableBody(this.data);
         } else {
             alert(`Очистить данные о проверке не удалось. Причина: ${result.reason}`);
         }
@@ -239,38 +250,47 @@ export default class ObjectItem {
     }
 
     exportToExcel() {
-        const data = [...this.data];
+        const data = [];
+        console.log(this, this.name, data);
+        this.data.forEach((item, i) => {
+            data.push({
+                name: this.name,
+                status: item.status,
+                voltage: item.status,
+                current: item.status,
+                start_timestamp: (item.status === 2) ? '-' : new Date(item.start_timestamp),
+                end_timestamp: new Date(item.timestamp),
+                workingHours: (item.status === 2) ? "-" : item.workingHours,
+            });
+        });
+
         objectExporter({
-            exportable: data, // The dataset to be exported form an array of objects, it can also be the DOM name for exporting DOM to html
-            type: "csv", // The type of exportable e.g. csv, xls or pdf
+            exportable: data,
+            type: "csv",
             headers: [
                 {
-                    name: "Name", // Name of the field without space to be used internally
-                    alias: "Name", // The name of field which will be visualized in the export
-                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
-                }, {
-                    name: "Status", // Name of the field without space to be used internally
-                    alias: "Status", // The name of field which will be visualized in the export
-                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
-                }, {
-                    name: "Voltage", // Name of the field without space to be used internally
-                    alias: "Voltage", // The name of field which will be visualized in the export
-                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
-                }, {
-                    name: "Current", // Name of the field without space to be used internally
-                    alias: "Current", // The name of field which will be visualized in the export
-                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
-                }, {
-                    name: "TimeStamp", // Name of the field without space to be used internally
-                    alias: "TimeStamp", // The name of field which will be visualized in the export
-                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
-                }, {
-                    name: "WorkingHours", // Name of the field without space to be used internally
-                    alias: "WorkingHours", // The name of field which will be visualized in the export
-                    flex: 1 // An integer value which shows the relative width of this columns in comparison to the other columns
+                    name: "Name", alias: "Name", flex: 1
+                },
+                {
+                    name: "Status", alias: "Status", flex: 1
+                },
+                {
+                    name: "Voltage", alias: "Voltage", flex: 1
+                },
+                {
+                    name: "Current", alias: "Current", flex: 1
+                },
+                {
+                    name: "StartTimestam", alias: "StartTimestam", flex: 4
+                },
+                {
+                    name: "EndTimestamp", alias: "EndTimestamp", flex: 4
+                },
+                {
+                    name: "WorkingHours", alias: "WorkingHours", flex: 1
                 },
             ],
-            fileName: `${this.name}_отчет${new Date().getTime()}`,
+            fileName: `${this.name}_отчет${new Date()}`,
         })
     }
 
@@ -542,6 +562,8 @@ export default class ObjectItem {
     }
 
     fillTableHead() {
+        // Если таблица уже существует
+        if (this.table.querySelector('THEAD')) this.table.querySelector('THEAD').remove();
         const thead = document.createElement("THEAD");
         const tr = document.createElement("TR");
         const th = document.createElement("TH");
@@ -592,6 +614,7 @@ export default class ObjectItem {
             const tr           = document.createElement("TR");
             const th           = document.createElement("TH");
 
+            // Если проверка - считаем время работы
             if (item.status === 1) {
                 let end = new Date(item.timestamp).getTime();
                 let start = new Date(item.start_timestamp).getTime();
@@ -602,6 +625,7 @@ export default class ObjectItem {
             }
 
             let date;
+            // Если есть таймтамм - формируем дату
             if (item.timestamp) {
                 date = new Date(item.timestamp);
                 date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
@@ -612,11 +636,15 @@ export default class ObjectItem {
                 date = "-";
             }
 
-            th.textContent = `${date}`
-            voltage.textContent = `${item.voltage || "-"}`;
-            current.textContent = `${item.current || "-"}`;
-            capacity.textContent = (item.workingHours) ? `${(item.current * item.workingHours / 60).toFixed(2)}` : '-';
-            power.textContent = `${item.voltage * item.current || "-"}`;
+            let capacityValue = (item.workingHours)
+            ? `${(item.current * item.workingHours / 60).toFixed(2)}`
+            : '-';
+
+            th      .textContent = `${date}`
+            power   .textContent = `${item.voltage * item.current || "-"}`;
+            voltage .textContent = `${item.voltage || "-"}`;
+            current .textContent = `${item.current || "-"}`;
+            capacity.textContent =  capacityValue;
 
             // Расчет деградации
             let degradationInPercent = '-';
@@ -625,10 +653,12 @@ export default class ObjectItem {
                 let c2 = (this.reference.current * this.reference.workingHours / 60);
                 degradationInPercent = `${(c1 / c2).toFixed(2) * 100}%`;
             }
-            degradation.textContent = degradationInPercent;
-            // Рассчет времени работы
 
+            degradation.textContent = degradationInPercent;
+
+            // Рассчет времени работы
             let workingHoursDuration;
+
             // Если есть время работы (начальная и конечная даты)
             if (item.workingHours) {
                 workingHoursDuration = item.workingHours;
@@ -643,11 +673,11 @@ export default class ObjectItem {
             } else {
                 workingHoursDuration = "-";
             }
-
-
             workingHours.textContent = workingHoursDuration;
-            // Обратный отсчет у тревожной записи
-            if (i === 0 && item.status === 2) {
+
+
+            // Обратный отсчет и метка у тревожной записи
+            if (this.current === item) {
                 setInterval(() => {
                     let hours = +workingHours.textContent.split(":")[0];
                     let minutes = +workingHours.textContent.split(":")[1];
@@ -659,7 +689,10 @@ export default class ObjectItem {
                         workingHours.textContent = `${(hours < 9) ? `0${hours}` : hours}:${(minutes < 9) ? `0${minutes}` : minutes}`;
                     }
                 }, 60000);
+
+                tr.classList.add('alarm');
             }
+
             status.textContent = (item.status === 2) ? "Тревога" : "Проверка";
 
             this.table.appendChild(tbody);
@@ -673,6 +706,5 @@ export default class ObjectItem {
             tr.appendChild(workingHours);
             tr.appendChild(status);
         });
-
     }
 }

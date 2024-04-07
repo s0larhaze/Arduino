@@ -9,6 +9,7 @@ module.exports = {
     },
     mode: "development",
     node: false,
+    cache: false,
     module: {
         rules: [
             {

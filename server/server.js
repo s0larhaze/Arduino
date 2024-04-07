@@ -1,31 +1,26 @@
 "use strict";
-// При проверке
-// Я отправляю тебе запрос на проверку.
-// Ты отправляешь ответ со статусом
-// Ты отправляешь ответ, что объекты изменились
 
-// При сработке
-// Ты отправляешь мне objectsChanges
-// Ты отправляешь мне objectDataChanges 
-const express = require('express');
 const bodyParser = require('body-parser');
-const mysql = require('mysql');
-const serial = require('serialport');
-const cors = require('cors');
-const moment = require('moment');
-const { ReadlineParser } = require('@serialport/parser-readline')
-const path = require('path');
-const { createServer } = require('node:http');
-const WebSocket = require('ws');
-const uuid = require('uuid');
+const express    = require('express');
+const serial     = require('serialport');
+const moment     = require('moment');
+const mysql      = require('mysql');
+const cors       = require('cors');
+const path       = require('path');
+const uuid       = require('uuid');
 
-const app = express();
+const WebSocket = require('ws');
+
+const { ReadlineParser } = require('@serialport/parser-readline');
+const { createServer }   = require('node:http');
+
+const app    = express();
 const server = createServer(app);
 
 const wss = new WebSocket.Server({ server });
 
 let connectedObjects = {};
-let connectedUsers = new Array();
+let connectedUsers   = [];
 
 app.use(express.json());
 app.use("/socket", express.static('socket'))
@@ -52,66 +47,23 @@ wss.on('connection', (socket) => {
     console.log(connectedUsers.length);
 })
 
-function userObjectRegistration(ws) {
-    connectedUsers.push(ws);
-    getObjectsHandler(ws);
-}
-
-function objectRegistrationHandler(object_id, ws) {
-
-    if (!object_id) {
-        console.log("object_id cannot be empty, undefined or null");
-        return;
-    }
-
-    const checkIfObjectPresentInDB = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select count (*) as count from objects where id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result[0].count);
-            });
-        })
-    }
-
-    const createObjectInDB = () => {
-        sqlcon.query(`insert into objects (id, name, status) values
-    (
-      ${object_id},
-      'Безымянный объект',
-      0
-    )`, (err) => {
-            if (err) throw err;
-        })
-    }
-
-    checkIfObjectPresentInDB()
-        .then(count => {
-            if (!count)
-                createObjectInDB();
-
-            connectedObjects[object_id] = ws;
-            // console.log("CONNECTEDOBJECTS", connectedObjects[object_id]);
-        })
-        .catch(err => {
-            console.log("Cathed an error", err);
-        })
-}
-
 function handleMessage(message, ws) {
     let message_json = null;
-    let type = null;
-    let data = null;
-    let object_id = null;
+    let object_id    = null;
+    let type         = null;
+    let data         = null;
     try {
         message_json = JSON.parse(message);
-        console.log("MESSAGE_JSON", message_json);
-        type = message_json.type;
-        data = message_json.data;
-        object_id = data.id;
+        type         = message_json.type;
+        data         = message_json.data;
+        object_id    = data.id;
+        object_name  = data.name;
     } catch {
         console.log("No reasonable message.");
     }
-    console.log("mtype", type);
+
+    console.log("MESSAGE_JSON", message_json);
+
     let object_socket = null;
 
     switch (type) {
@@ -139,11 +91,23 @@ function handleMessage(message, ws) {
         case 'userObjectRegistration':
             userObjectRegistration(ws);
             break;
+        case 'getObjects':
+            getObjectsHandler(ws);
+            break;
+        case 'getObjectData':
+            const name = data.name;
+            const id   = data.id;
+
+            getObjectData(id, name, ws);
+            break;
+        // Что это?
         case 'getCurrentObjectRegistrationSocket':
-            console.log(connectedObjects.get(object_id));
-            console.log("ObjectId:");
-            console.log(object_id);
-            ws.send(JSON.stringify({ type: "getCurrentObjectRegistrationSocket", data: { objectSocket: connectedObjects.get(object_id) } }))
+        ws.send(JSON.stringify({
+                type: "getCurrentObjectRegistrationSocket",
+                data: {
+                    objectSocket: connectedObjects.get(object_id)
+                }
+            }));
             break;
         case 'startChecking':
             object_socket = connectedObjects[data.id]; // not working, gotta find a better solution
@@ -154,23 +118,8 @@ function handleMessage(message, ws) {
             // Объектов нема, вернуть
             startChecking(data.id, object_socket);
             break;
-        case 'getObjects':
-            getObjectsHandler(ws);
-            break;
         case 'getObjectMeasurementData':
             getObjectMeasurementDataHandler(object_id, ws);
-            break;
-        case 'getObjectData':
-            let name = data.name;
-            getObjectIdByName(name)
-                .then((result) => {
-                    let object_id = result;
-                    console.log("OBJECT_ID = " + object_id);
-                    console.log("_+_______________GETOBJECTDATAHERE");
-                    console.log("[[[[OBJECT_ID", object_id);
-                    console.log("[[[[name", data.name);
-                    getObjectData(object_id, data.name, ws);
-                })
             break;
         case 'startMockEmergency':
             object_socket = connectedObjects[data.id];
@@ -196,76 +145,255 @@ function handleMessage(message, ws) {
             console.log('Unknown message type:', type);
     }
 }
+// Клиент
 
+// Регистрирует пользователей и инициализирует их обработку
+function userObjectRegistration(ws) {
+    connectedUsers.push(ws);
+    getObjectsHandler(ws);
+}
+
+// Возвращает список объектов
+async function getObjectsHandler(ws, type = "getObjects") {
+    const objects = [];
+    const selectObjects = `SELECT id, name, status, timestamp FROM objects`;
+
+    const result = await executeQuery(selectObjects);
+    result.forEach((item, i) => {
+        if (item.timestamp) {
+            item.timestamp = new Date(item.timestamp).getTime();
+        }
+    });
+
+    connectedUsers.forEach((item, i) => {
+        item.send(JSON.stringify({ type: type, data: result }));
+    });
+}
+
+// Возвращает данные по объекту
+async function getObjectData(id, name, ws) {
+    let current       = null;
+    let history       = [];
+
+    let object_status = null;
+
+    async function getEmergencyData(id) {
+        const sql = `SELECT * FROM emergency WHERE object_id = ? ORDER BY timestamp asc`;
+        const result = await executeQuery(sql, [id]);
+        return result;
+    }
+
+    async function getMeasurementsData(id) {
+        const sql = `SELECT id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id, isReferential FROM measurements WHERE object_id = ?`;
+        const result = await executeQuery(sql, [id]);
+        return result;
+    }
+
+    async function getObjectStatus(id) {
+        const sql = `SELECT status FROM objects WHERE id = ?`;
+        const result = await executeQuery(sql, [id]);
+        return result[0].status;
+
+    }
+
+    object_status = await getObjectStatus(id);
+
+    const emergencies  = await getEmergencyData(id);
+    const measurements = await getMeasurementsData(id);
+
+    // добавляем тревоги в историю
+    emergencies.forEach((item, i) => {
+        item['status'] = 2;
+        item.timestamp = new Date(item.timestamp).getTime();
+        history.push(item);
+    });
+
+    if (object_status === 2) current = history.shift();
+
+    // Добавляем измерения в историю
+    measurements.forEach((item, i) => {
+        item['status'] = 1;
+        history.push(item);
+    });
+
+    let response = {};
+        response.type = 'getObjectData';
+        response.data = {
+            history: history,
+            name: name,
+            id: id,
+        };
+    // Если есть данные по текущей сработке
+    if (current) response.data['current'] = current;
+
+    ws.send(JSON.stringify(response));
+}
+
+// Очищаем данные по объекту
+async function clearData(id, name, ws) {
+    if (!id) {
+        console.log("object_id cannot be empty");
+        return;
+    }
+
+    try {
+        async function createArchiveDBQuery() {
+            const sql = "CREATE DATABASE IF NOT EXISTS archive_battery";
+            const result = await executeQuery(sql);
+            return result;
+        };
+        async function createArchiveTablesQuery() {
+            const createObjectsTable = `CREATE TABLE IF NOT EXISTS objects (
+                id int, name text, status tinyint
+            )`;
+            const createArchiveMeasurementsTable = `CREATE TABLE IF NOT EXISTS measurements (
+                id int,
+                avg_current float,
+                avg_voltage float,
+                start_timestamp timestamp,
+                end_timestamp timestamp,
+                object_id int,
+                isReferential boolean
+            )`;
+            const createArchiveEmergencyTable = `CREATE TABLE IF NOT EXISTS emergency (
+                id int,
+                current float,
+                voltage float,
+                timestamp timestamp,
+                object_id int
+            )`;
+
+            await executeQuery(createObjectsTable, [], 'archive_battery');
+            await executeQuery(createArchiveMeasurementsTable, [], 'archive_battery');
+            await executeQuery(createArchiveEmergencyTable, [], 'archive_battery');
+        }
+        async function dumpArchiveTablesQuery() {
+            // const dumpObjectRecords = `INSERT INTO archive_battery.objects SELECT * from battery.objects WHERE id = ?`;
+            const dumpMeasurementRecords = `INSERT INTO archive_battery.measurements SELECT * from battery.measurements WHERE object_id = ?`;
+            const dumpEmergencyRecords = `INSERT INTO archive_battery.emergency SELECT * from battery.emergency WHERE object_id = ?`;
+
+            // await executeQuery(dumpObjectRecords, [id], null);
+            await executeQuery(dumpMeasurementRecords, [id], null);
+            await executeQuery(dumpEmergencyRecords, [id], null);
+        }
+        async function resetBatteryTablesQuery() {
+            // const resetObjectRecord = `DELETE FROM objects WHERE id = ?`;
+            const resetMeasurementRecords = `DELETE FROM measurements WHERE object_id = ?`;
+            const resetEmergencyRecords = `DELETE FROM emergency WHERE object_id = ?`;
+
+            // await executeQuery(resetObjectRecord, [id]);
+            await executeQuery(resetMeasurementRecords, [id]);
+            await executeQuery(resetEmergencyRecords, [id]);
+        }
+
+        await createArchiveDBQuery();
+        await createArchiveTablesQuery();
+        await dumpArchiveTablesQuery();
+        await resetBatteryTablesQuery();
+
+        if (ws) {
+            ws.send(JSON.stringify({
+                type: 'clearData',
+                data: {
+                    id: id,
+                    name: name,
+                    status: true,
+                }
+            }));
+        }
+    } catch (e) {
+        console.log(e);
+        if (ws) {
+            ws.send(JSON.stringify({
+                type: 'clearData',
+                 data: {
+                    id: id,
+                    name: name,
+                    status: false,
+                    reason: e
+                }
+            }));
+        }
+    }
+}
+
+// Ардуино
+// Эту функцию можно переписать на асинхронный вариант
+function objectRegistrationHandler(object_id, ws) {
+    if (!object_id) {
+        console.log("object_id cannot be empty, undefined or null");
+        return;
+    }
+
+    async function checkIfObjectPresentInDB() {
+        const sql = `SELECT COUNT (*) as count FROM objects WHERE id = ?`
+        const result = await executeQuery(sql, [object_id]);
+
+        return result[0].count;
+    }
+
+    async function createObjectInDB() {
+        const sql = `
+        INSERT INTO objects (id, name, status)
+        VALUES (?, '? объект', 0)`;
+        const result = await executeQuery(sql, [object_id, object_id]);
+        console.log(result);
+    }
+
+    const count = checkIfObjectPresentInDB();
+    if (!count) createObjectInDB();
+}
 function startMockEmergencyHandler(object_socket) {
     object_socket.send(JSON.stringify({ type: "startMockEmergency" }));
 }
-
 async function measurementStartedDBOperation(object_id) {
 
     if (!object_id) {
         console.log("object_id cannot be empty");
         return;
-
     }
 
     let object_name = null;
 
-    // Не возвращают промисы
-    const insertRecordWithReferentialFlag = () => {
-        console.log("Trying to insert with referential flag...");
-        sqlcon.query(`
-            insert into measurements (start_timestamp, object_id, isReferential)
-            values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 1)`,
-            (err) => {
-                if (err) throw err;
-                console.log("Succesfully inserted.");
-            })
+    async function insertRecord(refFlag) {
+        const sql = `
+            INSERT INTO measurements (start_timestamp, object_id, isReferential)
+            VALUES ('?', ?, ?)`;
+        await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id, refFlag]);
     }
 
-    const insertRecord = () => {
-        sqlcon.query(`
-            insert into measurements (start_timestamp, object_id, isReferential)
-            values ('${moment().format('YYYY-MM-DD HH:mm:ss')}', ${object_id}, 0)`,
-            (err) => {
-                if (err) throw err;
-            });
+    async function checkIfRecordsExist() {
+        const sql = `SELECT COUNT(*) as count FROM measurements`;
+        const result = await executeQuery(sql);
+        return result[0].count;
     }
 
-    // Возвращают промисы
-    const changeObjectStatus = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`UPDATE objects SET status = 1 WHERE id = '${object_id}'`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
+    async function changeObjectStatus(object_id) {
+        try {
+            const sql = `UPDATE objects SET status = 1 WHERE id = '?'`;
+            const result = await executeQuery(sql, object_id);
+            return true;
+        } catch (e) {
+            return false;
+            console.log(e);
+        }
     }
 
-    const checkIfRecordsExist = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select count(*) as count from measurements`, (err, result) => {
-                if (err) reject(err);
-                resolve(result[0].count);
-            })
-        })
-    }
+    insertRecord(checkIfRecordsExist() % 2);
 
-    let count = await checkIfRecordsExist();
-
-    if (!count) {
-        insertRecordWithReferentialFlag();
-    } else {
-        insertRecord();
-    }
-
-    let result = await changeObjectStatus();
+    let result = await changeObjectStatus(object_id);
     object_name = await getObjectNameById(object_id);
 
     if (result) {
         connectedUsers.forEach((user, i) => {
-            user.send(JSON.stringify({ type: 'startChecking', data: { name: object_name, status: 1 } }))
-            getObjectData(object_id, '', 0);
+            user.send(JSON.stringify({
+                type: 'startChecking',
+                data: {
+                    name: object_name,
+                    id: object_id,
+                    status: 1,
+                }
+            }));
             getChangedObjectsHandler();
         });
     } else {
@@ -274,13 +402,17 @@ async function measurementStartedDBOperation(object_id) {
                 type: 'startChecking',
                 data: {
                     name: object_name,
+                    id: object_id,
                     status: 0,
-                    reason: "Ошибка измерения"
+                    reason: "Ошибка измерения",
                 }
             }));
         });
     }
 }
+
+
+
 
 // end_timestamp как тут нулить при отправке
 function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
@@ -308,19 +440,8 @@ function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
     }
 
     updateMeasurements()
-        .then(updateObjectStatus)
-        .then(getChangedObjectsHandler)
-        .then(() => {
-            getObjectData(object_id, '', 0);
-        })
-        .then(() => {
-            sendObjectDataChanged(object_id);
-        });
-
-}
-
-function getObjectDataChanges(object_id) {
-
+        .then(updateObjectStatus);
+    // .then(getChangedObjectsHandler);
 }
 
 function emergencyHandler(amperage, voltage, object_id, ws) {
@@ -371,7 +492,7 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
         })
     }
 
-    const changeObjectStatus = () => {
+    const chageObjectStatus = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`update objects set status = 2 where id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
@@ -380,7 +501,7 @@ function emergencyHandler(amperage, voltage, object_id, ws) {
         })
     }
 
-    changeObjectStatus()
+    chageObjectStatus()
         .then(insertIntoEmergency)
         .then(getObjectName)
         .then(dbObjectName => {
@@ -421,262 +542,24 @@ function emergencyStoppedHandler(object_id) {
     })
 }
 
-function BRUH() {
-    console.log("YOUVE ENTERED BRUH");
-}
 
-function getObjectData(object_id, name, ws) {
-    let object_name = '';
-    let current = null;
-    let object_status = null;
-    console.log(object_id);
-    let history = [];
-
-    const getObjectName = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select name from objects where id = ${object_id};`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        });
-    }
-
-    const getEmergencyData = (object_name) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select * from emergency where object_id = ${object_id} order by timestamp asc;`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            });
-        })
-    }
-
-    const getMeasurementsData = (object_name) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id from measurements where object_id = ${object_id};`, (err, result) => {
-                if (err) reject(err);
-                console.log(result);
-                resolve(result);
-            });
-        })
-    }
-
-    const getObjectStatus = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select status from objects where id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result[0].status);
-            })
-        });
-    }
-
-    getObjectStatus()
-        .then(status => {
-            object_status = status;
-        })
-        .then(getObjectName)
-        .then(name_of_object => {
-            object_name = name_of_object;
-        })
-        .then(getEmergencyData, object_name)
-        .then(emergencies => {
-            if (object_status === 2) {
-                current = emergencies[0] || null;
-                current.timestamp = (current === null ? null : new Date(current.timestamp).getTime())
-
-                for (let index = 1; index < emergencies.length; index++) {
-                    emergencies[index]['status'] = 2;
-                    emergencies[index].timestamp = (emergencies[index] === null ? null : new Date(emergencies[index].timestamp).getTime())
-                    history.push(emergencies[index]);
-                }
-            } else {
-                for (let index = 0; index < emergencies.length; index++) {
-                    emergencies[index]['status'] = 2;
-                    emergencies[index].timestamp = (emergencies[index] === null ? null : new Date(emergencies[index].timestamp).getTime())
-                    history.push(emergencies[index]);
-                }
-            }
-        })
-        .then(getMeasurementsData, object_name)
-        .then(measurements => {
-
-            for (let index = 0; index < measurements.length; index++) {
-                measurements[index]['status'] = 1;
-                history.push(measurements[index]);
-            }
-
-            connectedUsers.forEach(user => {
-                (current)
-                    ? user.send(JSON.stringify({ type: 'getObjectData', data: { 'current': current, 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
-                    : user.send(JSON.stringify({ type: 'getObjectData', data: { 'history': history.length === 0 ? null : history, name: object_name[0].name, id: object_id } }))
-            })
-        })
-}
-
-function getObjectMeasurementDataHandler(object_id, ws) {
+// Получаем данные по измерениям и отправляем их клиенту?
+async function getObjectMeasurementDataHandler(object_id, ws) {
     if (object_id === '') {
         console.log("object_id cannot be empty");
         return;
     }
 
-    sqlcon.query(`SELECT * FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
-        if (err) throw err;
-        ws.send(JSON.stringify({ type: 'getObjectMeasurementData', data: result }));
-    });
+    try {
+        const sql = `SELECT * FROM measurements WHERE object_id = ?`;
+        const results = await executeQuery(sql, [object_id]);
+        ws.send(JSON.stringify({ type: 'getObjectMeasurementData', data: results }));
+    } catch (error) {
+        console.error(error);
+    }
 }
 
-function clearData(object_id, object_name, ws) {
 
-    if (!object_id) {
-        console.log("object_id cannot be empty");
-        return;
-    }
-
-    const createArchiveDBQuery = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query("create database if not exists archive_battery", (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            });
-        });
-    };
-
-    const useArchiveBatteryQuery = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query("use archive_battery", (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            });
-        });
-    };
-
-    const createArchiveTablesQuery = () => {
-        return new Promise((resolve, reject) => {
-
-            const createObjectsTable = () => {
-                return new Promise((resolve, reject) => {
-                    sqlcon.query(`create table if not exists objects
-        (
-        id int,
-          name text,
-          status tinyint
-        )`, (err, result) => {
-                        if (err) reject(err);
-                        console.log("CREATEOBJECTSTABLE WORKED WELL");
-                        resolve(result);
-                    })
-                })
-            }
-
-            const createArchiveMeasurementsTable = () => {
-                return new Promise((resolve, reject) => {
-                    sqlcon.query(`create table if not exists measurements
-          (
-            id int,
-            avg_current float,
-            avg_voltage float,
-            start_timestamp timestamp,
-            end_timestamp timestamp,
-            object_id int,
-            isReferential boolean
-          )`, (err, result) => {
-                        if (err) reject(err);
-                        resolve(result);
-                    })
-                })
-            }
-
-            const createArchiveEmergencyTable = () => {
-                return new Promise((resolve, reject) => {
-                    sqlcon.query(`create table if not exists emergency
-          (
-            id int,
-            current float,voltage float,
-            timestamp timestamp,
-            object_id int
-          )`, (err, result) => {
-                        if (err) reject(err);
-                        resolve(result);
-                    })
-                })
-            }
-
-            createObjectsTable()
-                .then(createArchiveMeasurementsTable)
-                .then(createArchiveEmergencyTable)
-                .then(() => {
-                    resolve();
-                })
-                .catch((err) => {
-                    console.log(err);
-                    reject(err);
-                })
-        });
-    };
-
-    const dumpMeasurementRecords = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`insert into archive_battery.measurements select * from battery.measurements where object_id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
-    }
-
-    const dumpEmergencyRecords = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`insert into archive_battery.emergency select * from battery.emergency where object_id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
-    }
-
-    const resetMeasurementRecords = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`delete from measurements where object_id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
-    }
-
-    const resetEmergencyRecords = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`delete from emergency where object_id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
-    }
-
-    return new Promise((resolve, reject) => {
-        createArchiveDBQuery()
-            .then(useArchiveBatteryQuery)
-            .then(createArchiveTablesQuery)
-            .then(() => {
-                console.log("Archive DB is ready...");
-            })
-            .then(useBatteryQuery)
-            .then(result => {
-                console.log("REUSLT ", result);
-            })
-            .then(dumpMeasurementRecords)
-            .then(dumpEmergencyRecords)
-            .then(resetMeasurementRecords)
-            .then(resetEmergencyRecords)
-            .then(resetEmergencyRecords)
-            .then(() => {
-                if (ws)
-                    ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': true } }));
-                resolve("OK");
-            })
-            .catch(err => {
-                console.log(err);
-                if (ws)
-                    ws.send(JSON.stringify({ type: 'clearData', data: { name: object_name, 'status': false, 'reason': err } }));
-            });
-    })
-}
 
 function deleteObject(object_id, object_name, ws) {
 
@@ -743,88 +626,6 @@ function startChecking(object_id, object_socket) {
     // })
 }
 
-async function getObjectsHandler(ws) {
-
-    let objects = [];
-
-    const BRUH123 = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`SELECT id, name, status
-                              FROM objects`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-                // ws.send(JSON.stringify({ type: 'getObjects', data: result }));
-            });
-        })
-    }
-
-    const getLatestMeasurementTimestamp = (object_id) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select start_timestamp as timestamp from measurements where object_id = ${object_id} order by timestamp desc`, (err, result) => {
-                if (err) reject(err);
-                resolve(new Date(result[0].timestamp).getTime());
-            })
-        })
-    }
-
-    const getLatestEmergencyTimestamp = (object_id) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`select timestamp from emergency where object_id = ${object_id} order by timestamp desc`, (err, result) => {
-                if (err) reject(err);
-                resolve(result);
-            })
-        })
-    }
-
-    BRUH123()
-        .then(result => {
-            return new Promise(async (response, reject) => {
-                console.log(result);
-                for (let index = 0; index < result.length; index++) {
-                    let currentObject = result[index];
-                    if (currentObject.status === 1) {
-                        let localObject = currentObject;
-                        localObject.timestamp = await getLatestMeasurementTimestamp(currentObject.id);
-                        localObject.timestamp = new Date(localObject.timestamp).getTime();
-                        objects.push(localObject);
-                    }
-                    else if (currentObject.status === 2) {
-                        let localObject = currentObject;
-                        localObject.timestamp = await getLatestEmergencyTimestamp(currentObject.id);
-                        localObject.timestamp = new Date(localObject.timestamp[0].timestamp).getTime();
-                        objects.push(localObject);
-                    }
-                    else {
-                        let localObject = currentObject;
-                        objects.push(localObject);
-                    }
-                }
-                response("OK");
-            })
-        })
-        .then(() => {
-            for (let i = 0; i < connectedUsers.length; i++) {
-                connectedUsers[i].send(JSON.stringify({ type: "getObjects", data: objects }));
-            }
-        })
-}
-
-async function sendObjectDataChanged(object_parameter) {
-    let object_name = null;
-    if (typeof object_parameter === 'number') {
-        object_name = await getObjectNameById(object_parameter);
-        console.log("TYPEOF ", typeof object_parameter);
-    } else if (typeof object_parameter === 'string') {
-        object_name = object_parameter;
-        console.log("TYPEOF ", typeof object_parameter);
-    }
-    console.log("TYPEOFGENERAL ", typeof object_parameter);
-    console.log("OBJECT_PARAMETER ", typeof object_parameter);
-
-    connectedUsers.forEach(user => {
-        user.send(JSON.stringify({ type: "objectDataChanges", data: { name: object_name } }));
-    })
-}
 
 async function getChangedObjectsHandler() {
 
@@ -840,21 +641,12 @@ async function getChangedObjectsHandler() {
     }
     const getLatestMeasurementTimestamp = (object_id) => {
         return new Promise((resolve, reject) => {
-            sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id} order by start_timestamp desc`, (err, result) => {
+            sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
                 if (err) reject(err);
                 resolve(result[0].start_timestamp);
             })
         });
     }
-    const getLatestEmergencyTimestamp = (object_id) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`SELECT timestamp FROM emergency WHERE object_id = ${object_id} order by timestamp desc`, (err, result) => {
-                if (err) reject(err);
-                resolve(result[0].timestamp);
-            })
-        });
-    }
-
     const getData = () => {
         return new Promise((resolve, reject) => {
             sqlcon.query(`SELECT id, name, status FROM objects`,
@@ -882,31 +674,11 @@ async function getChangedObjectsHandler() {
     // }
 
     let objects = await getData();
-    let objectsPlus = [];
 
-    for (let index = 0; index < objects.length; index++) {
-        let currentObject = objects[index];
-        if (currentObject.status === 1) {
-            let localObject = currentObject;
-            localObject.timestamp = await getLatestMeasurementTimestamp(currentObject.id);
-            localObject.timestamp = new Date(localObject.timestamp).getTime();
-            objectsPlus.push(localObject);
-        }
-        else if (currentObject.status === 2) {
-            let localObject = currentObject;
-            localObject.timestamp = await getLatestEmergencyTimestamp(currentObject.id);
-            localObject.timestamp = new Date(localObject.timestamp).getTime();
-            objectsPlus.push(localObject);
-        }
-        else {
-            let localObject = currentObject;
-            objectsPlus.push(localObject);
-        }
-    }
 
     for (let i = 0; i < connectedUsers.length; i++) {
         console.log(i, "OBJECTCHANGES");
-        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objectsPlus }))
+        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objects }))
     }
 
     // // Надо, чтобы возвращало результат
@@ -919,25 +691,16 @@ async function getChangedObjectsHandler() {
     //     })
 }
 
-function getObjectIdByName(name) {
-    return new Promise((resolve, reject) => {
-        sqlcon.query(`select id as object_id from objects where name = '${name}'`, (err, result) => {
-            if (err) reject(err);
-            console.log("GETOBJECTIDBYNAME", result);
-            console.log("GETOBJECTIDBYNAME")
-            resolve(result[0].object_id);
-        })
-    })
+async function getObjectIdByName(name) {
+    const sql = `SELECT id as object_id FROM objects WHERE name = ?`;
+
+    return await executeQuery(sql, [name])[0].object_id;
 }
 
-function getObjectNameById(object_id) {
-    return new Promise((resolve, reject) => {
-        sqlcon.query(`select name from objects where id = ${object_id}`, (err, result) => {
-            if (err) reject(err);
-            console.log("GETOBJECTNAMEBYID", result);
-            resolve(result[0].name);
-        })
-    })
+async function getObjectNameById(object_id) {
+    const sql = `SELECT name FROM objects WHERE id = ?`;
+
+    return await executeQuery(sql, [object_id])[0].name;
 }
 
 // ENUMS
@@ -955,112 +718,145 @@ const messageTypes = {
 // END ENUMS
 
 // DB SETUP
-const sqlcon = mysql.createConnection({
+
+// Создаем пул соединений
+const pool = mysql.createPool({
+    connectionLimit: 10, // Максимальное количество соединений в пуле
     host: "localhost",
     user: "root",
     password: "root",
-})
+    port: 3306, // Указываем порт (если отличается от стандартного)
+    multipleStatements: true // Разрешаем выполнение нескольких SQL-запросов в одном вызове
+});
 
-const SQLConnectQuery = () => {
+// Функция для выполнения запросов к базе данных
+function executeQuery(sql, values = [], database = 'battery') {
     return new Promise((resolve, reject) => {
-        sqlcon.connect((err, result) => {
-            if (err) reject(err);
-            resolve(result);
-        });
-    });
-};
-
-const createDBQuery = () => {
-    return new Promise((resolve, reject) => {
-        sqlcon.query("create database if not exists battery", (err, result) => {
-            if (err) reject(err);
-            resolve(result);
-        });
-    });
-};
-
-const useBatteryQuery = () => {
-    return new Promise((resolve, reject) => {
-        sqlcon.query("use battery", (err, result) => {
-            if (err) reject(err);
-            resolve(result);
-        });
-    });
-};
-
-const createTablesQuery = () => {
-    return new Promise((resolve, reject) => {
-
-        const createObjectsTable = () => {
-            return new Promise((resolve, reject) => {
-                sqlcon.query(`create table if not exists objects
-        (
-        id int primary key,
-          name text,
-          status tinyint
-        )`, (err, result) => {
-                    if (err) reject(err);
-                    resolve(result);
-                })
-            })
-        }
-
-        const createMeasurementsTable = () => {
-            return new Promise((resolve, reject) => {
-                sqlcon.query(`create table if not exists measurements
-          (
-            id int auto_increment primary key,
-            avg_current float,
-            avg_voltage float,
-            start_timestamp timestamp,
-            end_timestamp timestamp,
-            object_id int,
-            isReferential boolean
-          )`, (err, result) => {
-                    if (err) reject(err);
-                    resolve(result);
-                })
-            })
-        }
-
-        const createEmergencyTable = () => {
-            return new Promise((resolve, reject) => {
-                sqlcon.query(`create table if not exists emergency
-          (
-            id int auto_increment primary key,
-            current float,voltage float,
-            timestamp timestamp,
-            object_id int
-          )`, (err, result) => {
-                    if (err) reject(err);
-                    resolve(result);
-                })
-            })
-        }
-
-        createObjectsTable()
-            .then(createMeasurementsTable)
-            .then(createEmergencyTable)
-            .then(() => {
-                resolve();
-            })
-            .catch((err) => {
-                console.log(err);
+        // Получаем соединение из пула
+        pool.getConnection((err, connection) => {
+            if (err) {
                 reject(err);
-            })
-    });
-};
+                return;
+            }
 
-SQLConnectQuery()
-    .then(createDBQuery)
-    .then(useBatteryQuery)
-    .then(createTablesQuery)
-    .then(() => {
-        console.log("All DB setups have been finished succesfully!");
-    })
-    .catch((err) => {
-        console.log(err);
+            // Подключаемся к указанной базе данных, если не указано иное
+            if (database) {
+                connection.changeUser({ database }, (error) => {
+                    if (error) {
+                        connection.release(); // Освобождаем соединение обратно в пул
+                        reject(error);
+                        return;
+                    }
+
+                    // Выполняем запрос
+                    connection.query(sql, values, (error, results, fields) => {
+                        // Освобождаем соединение обратно в пул
+                        connection.release();
+
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve(results);
+                        }
+                    });
+                });
+            } else {
+                // если указано иное
+                connection.query(sql, values, (error, results, fields) => {
+                    // Освобождаем соединение обратно в пул
+                    connection.release();
+
+                    if (error) {
+                        reject(error);
+                    } else {
+                        resolve(results);
+                    }
+                });
+            }
+        });
     });
+}
+
+// Функция для создания базы данных (если не существует)
+async function createDBQuery() {
+    const sql = "CREATE DATABASE IF NOT EXISTS battery";
+    try {
+        await executeQuery(sql, [], null);
+        console.log("Database created or already exists");
+    } catch (error) {
+        console.error("Error creating database:", error);
+        throw error;
+    }
+}
+
+// Функция для выбора базы данных
+async function useBatteryQuery() {
+    const sql = "USE battery";
+    try {
+        await executeQuery(sql);
+        console.log("Using battery database");
+    } catch (error) {
+        console.error("Error selecting database:", error);
+        throw error;
+    }
+}
+
+// Функция для создания таблиц
+async function createTablesQuery() {
+    const createObjectsTableQuery = `
+        CREATE TABLE IF NOT EXISTS objects (
+            id INT PRIMARY KEY,
+            name TEXT,
+            status TINYINT,
+            timestamp TIMESTAMP NULL DEFAULT NULL
+        )`;
+
+    const createMeasurementsTableQuery = `
+        CREATE TABLE IF NOT EXISTS measurements (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            avg_current FLOAT,
+            avg_voltage FLOAT,
+            start_timestamp TIMESTAMP,
+            end_timestamp TIMESTAMP,
+            object_id INT,
+            isReferential BOOLEAN
+        )`;
+
+    const createEmergencyTableQuery = `
+        CREATE TABLE IF NOT EXISTS emergency (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            current FLOAT,
+            voltage FLOAT,
+            timestamp TIMESTAMP,
+            object_id INT
+        )`;
+
+    try {
+        await executeQuery(createObjectsTableQuery);
+        await executeQuery(createMeasurementsTableQuery);
+        await executeQuery(createEmergencyTableQuery);
+        console.log("Tables created or already exist");
+    } catch (error) {
+        console.error("Error creating tables:", error);
+        throw error;
+    }
+}
+
+// Выполнение всех запросов
+async function setupDatabase() {
+    try {
+        await createDBQuery();
+        await useBatteryQuery();
+        await createTablesQuery();
+        console.log("All DB setups have been finished successfully!");
+    } catch (error) {
+        console.error("Error setting up database:", error);
+    }
+}
+
+// Вызов функции для установки базы данных
+setupDatabase();
+
 // END DB SETUP
 
 app.get("/", (req, res) => {
