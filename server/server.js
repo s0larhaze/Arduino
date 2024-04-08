@@ -645,7 +645,7 @@ async function getChangedObjectsHandler() {
             return result;
         }
 
-        let objects = await getData();
+        objects = await getData();
 
         connectedUsers.forEach((item, i) => {
             console.log(i, "OBJECTCHANGES");
