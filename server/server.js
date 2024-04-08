@@ -13,6 +13,7 @@ const WebSocket = require('ws');
 
 const { ReadlineParser } = require('@serialport/parser-readline');
 const { createServer }   = require('node:http');
+const { log } = require('console');
 
 const app    = express();
 const server = createServer(app);
@@ -72,7 +73,7 @@ function handleMessage(message, ws) {
             measurementStartedDBOperation(object_id);
             break;
         case 'arduinoFinishedMeasurement':
-        measurementFinishedDBOperation(data.avg_current, data.avg_voltage, object_id);
+            measurementFinishedDBOperation(data.avg_current, data.avg_voltage, object_id);
             break;
         case 'arduinoEmergency':
             emergencyHandler(data.current, data.voltage, object_id);
@@ -432,6 +433,7 @@ async function measurementStartedDBOperation(object_id) {
         let object_name = null;
 
         async function insertRecord(refFlag) {
+            console.log('INSERT');
             const sql = `
                 INSERT INTO measurements (start_timestamp, object_id, isReferential)
                 VALUES (?, ?, ?)`;
@@ -452,8 +454,9 @@ async function measurementStartedDBOperation(object_id) {
                 console.log(e);
             }
         }
-
-        await insertRecord(+!checkIfRecordsExist() % 2);
+        const reqEx = await checkIfRecordsExist();
+        await insertRecord(+!reqEx % 2);
+        
 
         let result = await changeObjectStatus(object_id);
         object_name = await getObjectNameById(object_id);
@@ -519,6 +522,8 @@ async function measurementFinishedDBOperation(avg_current, avg_voltage, object_i
 
     await updateMeasurements();
     await updateObjectStatus();
+
+    getChangedObjectsHandler();
 }
 
 // Сообщение о завершении сработки

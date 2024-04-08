@@ -262,19 +262,13 @@ class App {
     }
 
     handleObjectsChanges(newObjects) {
-        console.log(newObjects);
+        // console.log(newObjects);
         // Сравниваем новые и старые объекты
         newObjects.forEach(newObj => {
             this.objects.forEach((oldObj, i) => {
                 if (newObj.name === oldObj.name) {
                     // Если без изменений
                     if (newObj.status === oldObj.status) return;
-
-                    if (this.objectItems[newObj.id]) {
-                        if (this.objectItems[newObj.id].self) {
-                            this.objectItems[newObj.id].restart(newObj.name, newObj.status, newObj.timestamp);
-                        }
-                    }
 
                     // Обновляем объект
                     this.objects[i] = newObj;
@@ -294,6 +288,13 @@ class App {
                         div.remove();
                     });
                     div.appendChild(closeButton);
+
+                    
+                    if (this.objectItems[newObj.id]) {
+                        if (this.objectItems[newObj.id].self) {
+                            this.objectItems[newObj.id].restart(newObj.name, newObj.status, newObj.timestamp);
+                        }
+                    }
 
                     // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
                     div.addEventListener("click", (event) => {

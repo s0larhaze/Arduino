@@ -18,8 +18,6 @@ export default class ObjectItem {
     }
 
     async start() {
-        clearInterval(this.timerInterval);
-
         // Получаем данные
         this.data = await this.parent.handleQuery({
             type: 'getObjectData',
@@ -30,24 +28,30 @@ export default class ObjectItem {
         });
 
         // Если данные есть
-        if (this.data && this.data.history.length) {
+        console.log(this.data.history);
+        if (this.data && this.data.history && this.data.history.length) {
             this.current = this.data.current || null;
 
             this.data = this.data.history.sort((a, b) => {
                 return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
             });
-
-            this.reference = this.data.find((el) => el.isReferential === 1);
-
+            
+            this.data.forEach((item, i) => {
+                if(item.isReferential) this.reference = this.data.splice(i, 1);
+            });
+            
             // Рассчитываем время работы
-            let end = new Date(this.reference.timestamp).getTime();
-            let start = new Date(this.reference.start_timestamp).getTime();
-            if (!!(end && start)) {
-                this.reference.workingHours = (end - start) / 1000 / 60;
+            if (this.reference){
+                let end = new Date(this.reference.timestamp).getTime();
+                let start = new Date(this.reference.start_timestamp).getTime();
+                if (!!(end && start)) {
+                    this.reference.workingHours = (end - start) / 1000 / 60;
+                }
             }
 
             // Добавляем в список образцовое измерение
-            this.data.unshift(this.reference);
+            this.data.unshift(this.reference[0]);
+            
             // И если есть, текущее измерение по тревоге
             if (this.current) this.data.unshift(this.current);
         } else {
@@ -352,6 +356,9 @@ export default class ObjectItem {
         this.name = name || this.name;
 
         this.start();
+        // this.startTimer();
+        // this.fillSelect();
+        // this.fillTableBody(this.data);
     }
 
     getTimeString(start, end) {
@@ -364,10 +371,14 @@ export default class ObjectItem {
     }
 
     startTimer() {
+        clearInterval(this.timerInterval);
+
         if (!this.timestamp) return;
         this.timerInterval = setInterval(() => {
-            const date = new Date().getTime();
-            this.timer.textContent = this.getTimeString(this.timestamp, date);
+
+            const nowTime = new Date().getTime();
+            const startTime = new Date(this.timestamp).getTime();
+            this.timer.textContent = this.getTimeString(startTime, nowTime);
         }, 1000);
     }
 

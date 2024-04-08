@@ -10,7 +10,7 @@
 const int VOLTAGE_IN = A0;
 const int CURRENT_IN = A0;
 const unsigned long MEASURE_DELAY = 5 * SECONDS;
-const unsigned long MEASURE_FOR = 5 * SECONDS;
+const unsigned long MEASURE_FOR = 60 * SECONDS;
 const unsigned long MOCK_EMERGENCY_LIMIT = 20 * SECONDS;
 
 bool cringe = false;
@@ -23,30 +23,30 @@ int OBJECT_ID = 1;
 //   MESSAGE_EMERGENCY = 2
 // };
 
-const char* ssid = "Resight";
-const char* password = "Res454569";
+const char* ssid = "C4C";
+const char* password = "s4svladimir32";
 
 using namespace websockets; WebsocketsClient client;
 
 void onMessageCallback(WebsocketsMessage message) {
-  Serial.println("HI");
-  Serial.println("Message: " + message.data());
+  // Serial.println("HI");
+  // Serial.println("Message: " + message.data());
 
   DynamicJsonDocument doc(1024);
   DeserializationError error = deserializeJson(doc, message.data());
   if (error) {
-    Serial.print("Failed to parse JSON: ");
-    Serial.println(error.c_str());
-    return;
+    // Serial.print("Failed to parse JSON: ");
+    // Serial.println(error.c_str());
+    // return;
   }
 
   const char* type = doc["type"];
   const char* data = doc["data"];
 
-  Serial.print("Type: ");
-  Serial.println(type);
-  Serial.print("data: ");
-  Serial.println(data);
+  // Serial.print("Type: ");
+  // Serial.println(type);
+  // Serial.print("data: ");
+  // Serial.println(data);
 
   // Bruh, not working
   if (strcmp(type, "executePlannedMeasurement") == 0) {
@@ -75,7 +75,7 @@ void onEventsCallback(WebsocketsEvent event, String data) {
     Serial.println("Connnection Closed");
     while (!client.available()) {
       Serial.println("Trying to form a socket connection...");
-      client.connect("ws://147.45.101.134:3000/");
+      client.connect("ws://192.168.33.69:3000/");
       delay(1000);
     }
   } 
@@ -92,7 +92,7 @@ void setup() {
 
   client.onMessage(onMessageCallback);
   client.onEvent(onEventsCallback);
-  client.connect("ws://147.45.101.134:3000/");
+  client.connect("ws://192.168.33.69:3000/");
 
   // You can send messages to the server using client.send() method
 }
@@ -102,7 +102,22 @@ void loop() {
 
   if (Serial.available() > 0) {
     String message = Serial.readString();
-    if (strcmp(message.c_str(), "Failed to parse JSON: InvalidInput"))
-      client.send(message);
+
+    DynamicJsonDocument doc(4096);
+    DeserializationError error = deserializeJson(doc, message);
+    if (error) {
+      // Serial.print("Failed to parse JSON: "); // FOR TESTING PURPOSES
+      // Serial.println(error.c_str());
+      // return;
+      return;
+    }
+
+    const char* type = doc["type"];
+    const char* data = doc["data"];
+
+    if (strcmp(type, "arduinoStartedMeasurement") == 0 ||
+        strcmp(type, "arduinoFinishedMeasurement") == 0){
+          client.send(message);
+        }
   }
 }
