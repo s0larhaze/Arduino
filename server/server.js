@@ -624,7 +624,7 @@ async function emergencyHandler(amperage, voltage, object_id, ws) {
     }
 }
 
-// Переписать
+// Возвращает список с изменениями в объектах
 async function getChangedObjectsHandler() {
     try {
         let objects = [];
@@ -640,12 +640,12 @@ async function getChangedObjectsHandler() {
         //     return start_timestamp[0].start_timestamp;
         // }
         async function getData() {
-            const sql = `SELECT id, name, status, timestamp FROM objects`;
+            const sql = `SELECT * FROM objects`;
             const result = await executeQuery(sql);
             return result;
         }
 
-        let objects = await getData();
+        objects = await getData();
 
         connectedUsers.forEach((item, i) => {
             console.log(i, "OBJECTCHANGES");
