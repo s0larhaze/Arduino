@@ -394,7 +394,7 @@ function startChecking(object_id, object_socket) {
 }
 
 // Регистрация объектов
-function objectRegistrationHandler(object_id, ws) {
+async function objectRegistrationHandler(object_id, ws) {
     if (!object_id) {
         console.log("object_id cannot be empty, undefined or null");
         return;
@@ -415,8 +415,9 @@ function objectRegistrationHandler(object_id, ws) {
         console.log(result);
     }
 
-    const count = checkIfObjectPresentInDB();
+    const count = await checkIfObjectPresentInDB();
     if (!count) createObjectInDB();
+    connectedObjects[object_id] = ws;
 }
 
 // Ответ на начало измерений
@@ -538,6 +539,7 @@ function emergencyStoppedHandler(object_id) {
         console.log(e);
     }
 }
+
 // Получаем данные по измерениям и отправляем их клиенту?
 async function getObjectMeasurementDataHandler(object_id, ws) {
     if (object_id === '') {
@@ -624,81 +626,56 @@ async function emergencyHandler(amperage, voltage, object_id, ws) {
 
 // Переписать
 async function getChangedObjectsHandler() {
+    try {
+        let objects = [];
 
-    // let objects = null;
+        // async function getObjectStatus() {
+        //     const sql = `SELECT status FROM objects WHERE id = ?`;
+        //     const status = await executeQuery(sql, [object_id]);
+        //     return status[0].status;
+        // }
+        // async function getLatestMeasurementTimestamp(object_id) {
+        //     const sql = `SELECT start_timestamp FROM measurements WHERE object_id = ?`;
+        //     const start_timestamp = await executeQuery(sql, [object_id]);
+        //     return start_timestamp[0].start_timestamp;
+        // }
+        async function getData() {
+            const sql = `SELECT id, name, status, timestamp FROM objects`;
+            const result = await executeQuery(sql);
+            return result;
+        }
 
-    const getObjectStatus = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`SELECT status FROM objects WHERE id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result[0].status);
-            })
+        let objects = await getData();
+
+        connectedUsers.forEach((item, i) => {
+            console.log(i, "OBJECTCHANGES");
+            item.send(JSON.stringify({ type: 'objectsChanges', data: objects }));
         });
+    } catch (e) {
+        console.log(e);
     }
-    const getLatestMeasurementTimestamp = (object_id) => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`SELECT start_timestamp FROM measurements WHERE object_id = ${object_id}`, (err, result) => {
-                if (err) reject(err);
-                resolve(result[0].start_timestamp);
-            })
-        });
-    }
-    const getData = () => {
-        return new Promise((resolve, reject) => {
-            sqlcon.query(`SELECT id, name, status FROM objects`,
-                (err, result) => {
-                    if (err) reject(err);
-                    resolve(result);
-                });
-        });
-    }
-    // Что это?
-    // const processObjects = (objects) => {
-    //     return new Promise((resolve, reject) => {
-    //         for (let i = 0; i < objects.length; i++) {
-    //             localObjects.push(objects[i]);
-    //             if (localObjects[i].status === 1) {
-    //                 let localObjects = [];
-    //                 getLatestMeasurementTimestamp(localObjects[i].id)
-    //                     .then(start_timestamp => {
-    //                         localObjects[i]['timestamp'] = start_timestamp;
-    //                         console.log("PROCESSLOCALOBJECTS", localObjects);
-    //                     })
-    //             }
-    //         }
-    //     })
-    // }
-
-    let objects = await getData();
-
-
-    for (let i = 0; i < connectedUsers.length; i++) {
-        console.log(i, "OBJECTCHANGES");
-        connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: objects }))
-    }
-
-    // // Надо, чтобы возвращало результат
-    // processObjects(objects)
-    //     .then(localObjects => {
-    //         console.log("OBJECTS", localObjects);
-    //         for (let i = 0; i < connectedUsers.length; i++) {
-    //             connectedUsers[i].send(JSON.stringify({ type: 'objectsChanges', data: localObjects }))
-    //         }
-    //     })
 }
 
-// Проверить
+/*
+так работает получение id
+let id = await getObjectIdByName(name);
+console.log(id);
+*/
 async function getObjectIdByName(name) {
-    const sql = `SELECT id as object_id FROM objects WHERE name = ?`;
-
-    return await executeQuery(sql, [name])[0].object_id;
+    const sql = `SELECT id FROM objects WHERE name = ?`;
+    const res = await executeQuery(sql, [name]);
+    return res[0].id;
 }
 
-// Проверить
-async function getObjectNameById(object_id) {
+/*
+так работает получение имени
+let name = await getObjectNameById(id);
+console.log(name);
+*/
+async function getObjectNameById(id) {
     const sql = `SELECT name FROM objects WHERE id = ?`;
-
-    return await executeQuery(sql, [object_id])[0].name;
+    const res = await executeQuery(sql, [id]);
+    return res[0].name;
 }
 
 // // ENUMS

@@ -293,7 +293,6 @@ export default class ObjectItem {
 
     exportToExcel() {
         const data = [];
-        console.log(this, this.name, data);
         this.data.forEach((item, i) => {
             data.push({
                 name: this.name,
