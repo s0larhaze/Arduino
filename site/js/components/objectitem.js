@@ -57,7 +57,7 @@ export default class ObjectItem {
         // Само окно
         this.self = document.createElement("ASIDE");
         this.self.classList.add("alertWindow");
-        this.self.classList.add(this.name);
+        // this.self.classList.add(this.name);
         this.parent.self.appendChild(this.self);
 
         this.header = document.createElement("HEADER");
