@@ -68,7 +68,7 @@ void measureBattery() {
     sensorValue2 = analogRead(CURRENT_IN);
     float voltage = sensorValue * 14.0 / 1024.0;     // Расчет напряжения
     float voltage2 = sensorValue2 * 5.0 / 1024.0;
-    float current = (voltage2 - 2.5) / 0.185;        // Расчет тока
+    float current = (voltage2 - 2.535) / 0.185;        // Расчет тока
 
     // float voltage = analogRead(VOLTAGE_IN) * (14.0 / 1023.0);
     // float current = (analogRead(A0) - 7.0) / 0.185;  //analogRead(CURRENT_IN);
