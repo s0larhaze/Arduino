@@ -76,7 +76,8 @@ function handleMessage(message, ws) {
             measurementFinishedDBOperation(data.avg_current, data.avg_voltage, object_id);
             break;
         case 'arduinoEmergency':
-            emergencyHandler(data.current, data.voltage, object_id);
+            console.log("EMERGENCY!!!");
+            emergencyHandler(data.current, data.voltage, object_id, ws);
             break;
         case 'arduinoEmergencyStopped':
             emergencyStoppedHandler(object_id);
@@ -526,7 +527,7 @@ async function measurementFinishedDBOperation(avg_current, avg_voltage, object_i
 // Сообщение о завершении сработки
 function emergencyStoppedHandler(object_id) {
     try {
-        const sql = `UPDATE SET status = 0 WHERE id = ?`;
+        const sql = `UPDATE objects SET status = 0, timestamp = null WHERE id = ?`;
         executeQuery(sql, [object_id]);
 
         connectedUsers.forEach((item, i) => {
@@ -564,7 +565,19 @@ async function emergencyHandler(amperage, voltage, object_id, ws) {
     let current = null;
     let history = [];
 
-    async function chageObjectStatus() {
+    async function getObjectStatus() {
+        const sql = `SELECT status FROM objects WHERE id = ?`;
+        const result = await executeQuery(sql, [object_id]);
+        return result[0].status;
+    }
+
+    async function getObjects(id) {
+        const sql = `SELECT * FROM objects WHERE id = ?`;
+        const result = await executeQuery(sql, [id]);
+        return result;
+    }
+
+    async function changeObjectStatus() {
         const sql = `UPDATE objects SET status = 2, timestamp = ? where id = ?`;
         const result = await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
     }
@@ -589,7 +602,15 @@ async function emergencyHandler(amperage, voltage, object_id, ws) {
         return result;
     }
 
-    await chageObjectStatus();
+    const status = await getObjectStatus();
+    if (!status) {
+        await changeObjectStatus();
+        const objects = await getObjects(object_id);
+        ws.send(JSON.stringify({
+            type: 'objectsChanges',
+            data: {objects},
+        }));
+    }
     await insertIntoEmergency(amperage);
 
     name = await getObjectNameById(object_id);

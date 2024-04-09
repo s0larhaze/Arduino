@@ -8,6 +8,7 @@ export default class ObjectItem {
         this.id            = id;
         this.self          = null;
         this.name          = name;
+        this.data          = [];
         this.status        = status;
         this.parent        = parent;
         this.filter        = { year: "null", month: "null", day: "null" };
@@ -27,28 +28,33 @@ export default class ObjectItem {
             }
         });
 
-        this.data = result || this.data;
-
-        console.log("result getObjectData from ObjectItem", result);
+        console.log("result getObjectData from ObjectItem", this);
 
         // Если данные есть
-        if (this.data && this.data.history.length) {
+        if (result && result.history && result.history.length) {
+            this.data = result;
             this.current = this.data.current || null;
 
             this.data = this.data.history.sort((a, b) => {
                 return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
             });
 
-            this.reference = this.data.find((el) => el.isReferential === 1);
+            this.data.forEach((item, i) => {
+                if(item.isReferential) this.reference = this.data.splice(i, 1);
+            });
+
+            this.reference = this.reference[0] || this.reference;
 
             // Рассчитываем время работы
-            let end = new Date(this.reference.timestamp).getTime();
-            let start = new Date(this.reference.start_timestamp).getTime();
-            if (!!(end && start)) {
-                this.reference.workingHours = (end - start) / 1000 / 60;
+            if (this.reference){
+                let end = new Date(this.reference.timestamp).getTime();
+                let start = new Date(this.reference.start_timestamp).getTime();
+                if (!!(end && start)) {
+                    this.reference.workingHours = (end - start) / 1000 / 60;
+                }
             }
 
-            // Добавляем в список образцовое измерение
+            // Добавляем в список образцовое измерение  
             this.data.unshift(this.reference);
             // И если есть, текущее измерение по тревоге
             if (this.current) this.data.unshift(this.current);
@@ -57,7 +63,8 @@ export default class ObjectItem {
         }
         // Формируем страницу
         // Само окно
-        this.self = document.createElement("ASIDE");
+        this.self = this.self || document.createElement("ASIDE");
+        this.self.innerHTML = null;
         this.self.classList.add("alertWindow");
         // this.self.classList.add(this.name);
         this.parent.self.appendChild(this.self);
@@ -339,10 +346,12 @@ export default class ObjectItem {
 
     // Утилитки
     finish() {
-        this.self.remove();
+        console.log(this.self);
+        this.parent.self.removeChild(this.self);
     }
 
     restart(name, status, timestamp) {
+        // переделать рестарт на перерисовку и убрать старт
         if (status === 0) {
             this.timestamp = null;
         } else {
@@ -366,10 +375,13 @@ export default class ObjectItem {
     }
 
     startTimer() {
+        clearInterval(this.timerInterval);
+
         if (!this.timestamp) return;
         this.timerInterval = setInterval(() => {
-            const date = new Date().getTime();
-            this.timer.textContent = this.getTimeString(this.timestamp, date);
+            const start = new Date().getTime();
+            const end = new Date(this.timestamp).getTime();
+            this.timer.textContent = this.getTimeString(end, start);
         }, 1000);
     }
 
@@ -533,6 +545,7 @@ export default class ObjectItem {
     }
 
     fillSelect() {
+        console.log(this.data);
         // Получаем данные
         // Начальное значение
         let yOption = document.createElement("OPTION");
@@ -655,7 +668,7 @@ export default class ObjectItem {
             }
 
             let date;
-            // Если есть таймтамм - формируем дату
+            // Если есть таймштамм - формируем дату
             if (item.timestamp) {
                 date = new Date(item.timestamp);
                 date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
@@ -669,7 +682,7 @@ export default class ObjectItem {
             let capacityValue = (item.workingHours)
             ? `${(item.current * item.workingHours / 60).toFixed(2)}`
             : '-';
-
+            // Переделать на проверку на null
             th      .textContent = `${date}`
             power   .textContent = `${item.voltage * item.current || "-"}`;
             voltage .textContent = `${item.voltage || "-"}`;

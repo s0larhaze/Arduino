@@ -1,54 +1,54 @@
+#include <SoftwareSerial.h>
 #include <ArduinoJson.h>
+#include <string.h>
+
 
 #define SECONDS 1000
 
 const int VOLTAGE_IN = A0;
 const int CURRENT_IN = A1;
-const unsigned long MEASURE_DELAY = 5 * SECONDS;
+const unsigned long MEASURE_DELAY = 30 * SECONDS;
 const unsigned long MEASURE_FOR = 3 * SECONDS;
 const unsigned long MOCK_EMERGENCY_LIMIT = 20 * SECONDS;
 
 const int averageValue = 500;
+bool isEmergency = 0;
 
 int OBJECT_ID = 1;
 
 void emergency() {
   unsigned long emergency_time = 0;
 
-  float voltage = analogRead(VOLTAGE_IN) * (5.0 / 1023.0);
-  float current = (voltage - 2.5) / 0.185;  //analogRead(CURRENT_IN);
+  float voltage = analogRead(VOLTAGE_IN) * (14.0 / 1023.0);
+  float current = ((analogRead(CURRENT_IN) * 5.0 / 1023.0) - 2.535) / 0.185;  //analogRead(CURRENT_IN);
 
-  while (emergency_time < MOCK_EMERGENCY_LIMIT) {
-    digitalWrite(LED_BUILTIN, HIGH);
-    delay(10);
-    digitalWrite(LED_BUILTIN, LOW);
-    JsonDocument jsdoc;
+  //while (emergency_time < MOCK_EMERGENCY_LIMIT) {
+  JsonDocument jsdoc;
 
+  jsdoc["type"] = "arduinoEmergency";
+  jsdoc["data"]["id"] = OBJECT_ID;
+  jsdoc["data"]["voltage"] = voltage;
+  jsdoc["data"]["current"] = current;
+  String jsdocSerialized;
+  serializeJson(jsdoc, jsdocSerialized);
 
-    jsdoc["type"] = "arduinoEmergency";
-    jsdoc["data"]["id"] = OBJECT_ID;
-    jsdoc["data"]["voltage"] = voltage;
-    jsdoc["data"]["current"] = current;
-    String jsdocSerialized;
-    serializeJson(jsdoc, jsdocSerialized);
+  Serial.println(jsdocSerialized);
 
-    Serial.println(jsdocSerialized);
+  delay(60000);
 
-    delay(MEASURE_DELAY);
-    emergency_time += MEASURE_DELAY;
-  }
+  // delay(MEASURE_DELAY);
+  // emergency_time += MEASURE_DELAY;
 }
 
 void measureBattery() {
-  float voltage_total = 0.0;
-  float current_total = 0.0;
+  float voltage_mean = 0.0;
+  float current_mean = 0.0;
   long int sensorValue; // Делим полученное значение 
   long int sensorValue2;
 
   unsigned long time_measuring = 0;
   unsigned long measured_times = 0;
 
-  digitalWrite(LED_BUILTIN, HIGH);
   JsonDocument startMeasurementData;
   JsonDocument data;
 
@@ -78,18 +78,19 @@ void measureBattery() {
     // Serial.print("VOLTAGE ");
     // Serial.println(voltage);
 
-    voltage_total += voltage;
-    current_total += current;
-
     measured_times += 1;
 
-    if (time_measuring >= MEASURE_FOR) {
+    voltage_mean += (voltage - voltage_mean) / float(measured_times);
+    current_mean += (current - current_mean) / float(measured_times);
+
+    delay(MEASURE_DELAY);
+    if (voltage <= 11.7) {
       JsonDocument jsdoc;
 
       jsdoc["message_type"] = 1;
       jsdoc["id"] = OBJECT_ID;
-      jsdoc["avg_voltage"] = voltage_total / float(measured_times);
-      jsdoc["avg_current"] = current_total / float(measured_times);
+      jsdoc["avg_voltage"] = voltage_mean;
+      jsdoc["avg_current"] = current_mean;
       String jsonStringified;
 
       digitalWrite(LED_BUILTIN, LOW);
@@ -99,14 +100,16 @@ void measureBattery() {
       break;
     }
 
-    delay(MEASURE_DELAY);
-    time_measuring += MEASURE_DELAY;
+    Serial.println("{ \"type\": \"arduinoChtoto\", \"data\": " + String(voltage) + " }");
+    time_measuring += (MEASURE_DELAY / 1000);
   }
 }
 
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+  pinMode(LED_BUILTIN, OUTPUT);  
+  pinMode(12, INPUT);  
   // measureBattery();
 }
 
@@ -117,33 +120,64 @@ void loop() {
 
   // delay(1000);
 
-  if (Serial.available() > 0) {
+  // digitalWrite(LED_BUILTIN, HIGH);
+  // delay(1000);
+  // digitalWrite(LED_BUILTIN, LOW);
+  // delay(1000);
+
+
+  if (Serial.available() > 0){
     String message = Serial.readString();
 
-    DynamicJsonDocument doc(1024);
+    DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, message);
-    if (error) {
-      // Serial.print("Failed to parse JSON: "); // FOR TESTING PURPOSES
-      // Serial.println(error.c_str());
-      // return;
-    }
-
-    const char* type = doc["type"];
-    const char* data = doc["data"];
-
-    // Serial.print("Type: ");
-    // Serial.println(type);
-    // Serial.print("data: ");
-    // Serial.println(data);
-
-    if (strcmp(type, "executePlannedMeasurement") == 0) {
-      measureBattery();
-    } else if (type == "startMockEmergency") {
-      Serial.println(message);
-    } else {
-      // Serial.println("BRUH");
+    if (!error) {
+      if (strcmp(doc["type"], "executePlannedMeasurement") == 0){
+        digitalWrite(LED_BUILTIN, HIGH);
+      }
     }
   }
 
-  delay(1000);
+  int twPin = digitalRead(12);
+
+  if (twPin == LOW){
+    emergency();
+    isEmergency = 1;
+  }
+
+  if (twPin == HIGH && isEmergency == 1){
+    isEmergency = 0;
+
+    JsonDocument jsdoc;
+    jsdoc["id"] = OBJECT_ID;
+    String jsonStringified;
+
+    serializeJson(jsdoc, jsonStringified);
+    Serial.println("{ \"type\": \"arduinoEmergencyStopped\", \"data\": " + jsonStringified + " }");
+  }
+
+  if (digitalRead(LED_BUILTIN) == HIGH){
+    measureBattery();
+  }
+
+
+  delay(100);
+
+  // if (Serial.available() > 0) {
+
+  //   DynamicJsonDocument doc(1024);
+  //   DeserializationError error = deserializeJson(doc, message);
+  //   if (error) {
+  //     // Serial.print("Failed to parse JSON: "); // FOR TESTING PURPOSES
+  //     // Serial.println(error.c_str());
+  //     // return;
+  //   }
+
+  //   const char* type = doc["type"];
+  //   const char* data = doc["data"];
+
+  //   if (strcmp(type, "executePlannedMeasurement") == 0) {
+  //     digitalWrite(LED_BUILTIN, HIGH);
+  //   }
+  // }
 }

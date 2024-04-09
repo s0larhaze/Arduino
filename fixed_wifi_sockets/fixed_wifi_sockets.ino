@@ -26,7 +26,8 @@ int OBJECT_ID = 1;
 const char* ssid = "C4C";
 const char* password = "s4svladimir32";
 
-using namespace websockets; WebsocketsClient client;
+using namespace websockets;
+WebsocketsClient client;
 
 void onMessageCallback(WebsocketsMessage message) {
   // Serial.println("HI");
@@ -70,15 +71,14 @@ void onEventsCallback(WebsocketsEvent event, String data) {
     serializeJson(regInfo, regInfoSerialized);
 
     client.send(regInfoSerialized);
-  } 
-  else if (event == WebsocketsEvent::ConnectionClosed) {
+  } else if (event == WebsocketsEvent::ConnectionClosed) {
     Serial.println("Connnection Closed");
     while (!client.available()) {
       Serial.println("Trying to form a socket connection...");
       client.connect("ws://192.168.33.69:3000/");
       delay(1000);
     }
-  } 
+  }
 }
 
 void setup() {
@@ -100,24 +100,19 @@ void setup() {
 void loop() {
   client.poll();
 
-  if (Serial.available() > 0) {
+  if (Serial.available() > 0){
     String message = Serial.readString();
 
     DynamicJsonDocument doc(4096);
     DeserializationError error = deserializeJson(doc, message);
-    if (error) {
-      // Serial.print("Failed to parse JSON: "); // FOR TESTING PURPOSES
-      // Serial.println(error.c_str());
-      // return;
-      return;
+
+    if (!error){
+      if (strcmp(doc["type"], "arduinoStartedMeasurement") == 0 || 
+          strcmp(doc["type"], "arduinoFinishedMeasurement") == 0){
+        client.send(message);
+      }
     }
-
-    const char* type = doc["type"];
-    const char* data = doc["data"];
-
-    if (strcmp(type, "arduinoStartedMeasurement") == 0 ||
-        strcmp(type, "arduinoFinishedMeasurement") == 0){
-          client.send(message);
-        }
   }
+
+  delay(100);
 }
