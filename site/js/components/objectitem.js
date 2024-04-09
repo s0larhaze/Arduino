@@ -19,7 +19,7 @@ export default class ObjectItem {
 
     async start() {
         // Получаем данные
-        this.data = await this.parent.handleQuery({
+        const result = await this.parent.handleQuery({
             type: 'getObjectData',
             data: {
                 name: this.name,
@@ -27,35 +27,33 @@ export default class ObjectItem {
             }
         });
 
+        this.data = result || this.data;
+
+        console.log("result getObjectData from ObjectItem", result);
+
         // Если данные есть
-        console.log(this.data.history);
-        if (this.data && this.data.history && this.data.history.length) {
+        if (this.data && this.data.history.length) {
             this.current = this.data.current || null;
 
             this.data = this.data.history.sort((a, b) => {
                 return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
             });
-            
-            this.data.forEach((item, i) => {
-                if(item.isReferential) this.reference = this.data.splice(i, 1);
-            });
-            
+
+            this.reference = this.data.find((el) => el.isReferential === 1);
+
             // Рассчитываем время работы
-            if (this.reference){
-                let end = new Date(this.reference.timestamp).getTime();
-                let start = new Date(this.reference.start_timestamp).getTime();
-                if (!!(end && start)) {
-                    this.reference.workingHours = (end - start) / 1000 / 60;
-                }
+            let end = new Date(this.reference.timestamp).getTime();
+            let start = new Date(this.reference.start_timestamp).getTime();
+            if (!!(end && start)) {
+                this.reference.workingHours = (end - start) / 1000 / 60;
             }
 
             // Добавляем в список образцовое измерение
-            this.data.unshift(this.reference[0]);
-            
+            this.data.unshift(this.reference);
             // И если есть, текущее измерение по тревоге
             if (this.current) this.data.unshift(this.current);
         } else {
-            this.data = [];
+            this.data = this.data || [];
         }
         // Формируем страницу
         // Само окно
@@ -356,9 +354,6 @@ export default class ObjectItem {
         this.name = name || this.name;
 
         this.start();
-        // this.startTimer();
-        // this.fillSelect();
-        // this.fillTableBody(this.data);
     }
 
     getTimeString(start, end) {
@@ -371,14 +366,10 @@ export default class ObjectItem {
     }
 
     startTimer() {
-        clearInterval(this.timerInterval);
-
         if (!this.timestamp) return;
         this.timerInterval = setInterval(() => {
-
-            const nowTime = new Date().getTime();
-            const startTime = new Date(this.timestamp).getTime();
-            this.timer.textContent = this.getTimeString(startTime, nowTime);
+            const date = new Date().getTime();
+            this.timer.textContent = this.getTimeString(this.timestamp, date);
         }, 1000);
     }
 

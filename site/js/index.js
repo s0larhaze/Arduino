@@ -74,7 +74,6 @@ class App {
     constructor() {
         this.waitingObjects = [];
         this.objectItems    = [];
-        this.responses      = [];
         this.objects        = [];
 
         this.start();
@@ -262,52 +261,67 @@ class App {
     }
 
     handleObjectsChanges(newObjects) {
-        // console.log(newObjects);
+        console.log("new objects", newObjects);
         // Сравниваем новые и старые объекты
+        // Переработать. Додумать отключение объктов
         newObjects.forEach(newObj => {
             this.objects.forEach((oldObj, i) => {
-                if (newObj.name === oldObj.name) {
-                    // Если без изменений
-                    if (newObj.status === oldObj.status) return;
+                // Выбираем объект
+                if (newObj.id !== oldObj.id) return;
 
-                    // Обновляем объект
-                    this.objects[i] = newObj;
-                    // Создаем окно оповещений
-                    let div = document.createElement("DIV");
-                    div.classList.add("alarmWindow");
-                    // Тревога
-                    (newObj.status == 2)
-                        ? div.innerHTML = `На объекте ${newObj.name} произошла черезвычайная ситуация. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`
-                        : div.innerHTML = `На объекте ${newObj.name} началась проверка. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
+                // Если без изменений
+                if (newObj.status === oldObj.status) return;
 
-                    // Кнопка закрытия
-                    let closeButton = document.createElement("BUTTON");
-                    closeButton.innerHTML = '&#11198;';
-                    closeButton.classList.add("alarmWindow_closeButton");
-                    closeButton.addEventListener('click', () => {
-                        div.remove();
-                    });
-                    div.appendChild(closeButton);
+                // Обновляем объект
+                this.objects[i] = newObj;
 
-                    
-                    if (this.objectItems[newObj.id]) {
-                        if (this.objectItems[newObj.id].self) {
-                            this.objectItems[newObj.id].restart(newObj.name, newObj.status, newObj.timestamp);
-                        }
+                // Удаляем старый объект, если он есть
+                const oldAlarmWindow = document.querySelector(`#alarmWindow${this.id}`);
+                if (oldAlarmWindow) oldAlarmWindow.remove();
+
+                // Обновляем открытый объект
+                const objectI = this.objectItems[newObj.id];
+                if (objectI) {
+                    if (objectI.self) {
+                        objectI.restart(newObj.name, newObj.status, newObj.timestamp);
                     }
-
-                    // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
-                    div.addEventListener("click", (event) => {
-                        if (event.target !== div) return;
-                        if (this.objectItems[newObj.id]) {
-                            this.objectItems[newObj.id].restart(newObj.name, newObj.status, newObj.timestamp);
-                        } else {
-                            this.objectItems[newObj.id] = new ObjectItem(newObj.id, newObj.name, newObj.status, this, newObj.timestamp);
-                        }
-                        div.remove();
-                    });
-                    this.self.appendChild(div);
                 }
+
+                // Если все закончилось - окно создавать не надо
+                if (!newObj.status) return ;
+
+                // Создаем окно оповещений
+                let div = document.createElement("DIV");
+                div.classList.add("alarmWindow");
+                div.id = `alarmWindow${this.id}`;
+                // Тревога
+                (newObj.status == 2)
+                    ? div.innerHTML = `На объекте ${newObj.name} произошла черезвычайная ситуация. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`
+                    // Проверка
+                    : div.innerHTML = `На объекте ${newObj.name} началась проверка. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
+
+                // Кнопка закрытия
+                let closeButton = document.createElement("BUTTON");
+                closeButton.innerHTML = '&#11198;';
+                closeButton.classList.add("alarmWindow_closeButton");
+                closeButton.addEventListener('click', () => {
+                    div.remove();
+                });
+                div.appendChild(closeButton);
+
+
+                // При клике мы либо создаем новый либо отрисовываем существующий объект с таблицей.
+                div.addEventListener("click", (event) => {
+                    if (event.target !== div) return;
+                    if (objectI) {
+                        objectI.restart(newObj.name, newObj.status, newObj.timestamp);
+                    } else {
+                        objectI = new ObjectItem(newObj.id, newObj.name, newObj.status, this, newObj.timestamp);
+                    }
+                    div.remove();
+                });
+
+                this.self.appendChild(div);
             });
         });
 
@@ -394,7 +408,6 @@ class App {
                     this.socket.send(JSON.stringify(query));
 
                     this.waitingObjects.push({ name: query.data.name, id: query.data.id, respons: null, state: 0 });
-                    this.responses[query.data.id] = null;
                     interval = setInterval(() => {
                         this.waitingObjects.forEach((item, i) => {
                             if (item.id !== query.data.id) return;
@@ -415,14 +428,13 @@ class App {
                     this.socket.send(JSON.stringify(query));
 
                     this.waitingObjects.push({ name: query.data.name, id: query.data.id, respons: null, state: 0 });
-                    this.responses[query.id] = null;
                     interval = setInterval(() => {
                         this.waitingObjects.forEach((item, i) => {
                             if (item.id !== query.data.id) return;
                             if (item.state) {
                                 clearInterval(interval);
                                 resolve(item.respons);
-                                this.waitingObjects.pop(i);
+                                this.waitingObjects.splice(i, 1);
                             }
                         });
                     }, 10);

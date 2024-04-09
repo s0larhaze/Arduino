@@ -423,7 +423,6 @@ async function objectRegistrationHandler(object_id, ws) {
 
 // Ответ на начало измерений
 async function measurementStartedDBOperation(object_id) {
-    // Как менять данные на горячую
     if (!object_id) {
         console.log("object_id cannot be empty");
         return;
@@ -433,7 +432,6 @@ async function measurementStartedDBOperation(object_id) {
         let object_name = null;
 
         async function insertRecord(refFlag) {
-            console.log('INSERT');
             const sql = `
                 INSERT INTO measurements (start_timestamp, object_id, isReferential)
                 VALUES (?, ?, ?)`;
@@ -447,16 +445,17 @@ async function measurementStartedDBOperation(object_id) {
         async function changeObjectStatus(object_id) {
             try {
                 const sql = `UPDATE objects SET status = 1, timestamp = ? WHERE id = '?'`;
-                const result = await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
+                await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
                 return true;
             } catch (e) {
                 return false;
                 console.log(e);
             }
         }
+
         const reqEx = await checkIfRecordsExist();
         await insertRecord(+!reqEx % 2);
-        
+
 
         let result = await changeObjectStatus(object_id);
         object_name = await getObjectNameById(object_id);
@@ -511,13 +510,11 @@ async function measurementFinishedDBOperation(avg_current, avg_voltage, object_i
                     avg_voltage = ?,
                     end_timestamp = ?
                     WHERE object_id = ? AND end_timestamp is NULL`;
-        const result = await executeQuery(sql, [avg_current, avg_voltage, moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
-        return result;
+        await executeQuery(sql, [avg_current, avg_voltage, moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
     }
     async function updateObjectStatus() {
         const sql = `UPDATE objects SET status = 0, timestamp = null WHERE id = ?`;
-        const result = await executeQuery(sql, [object_id]);
-        return result;
+        await executeQuery(sql, [object_id]);
     }
 
     await updateMeasurements();
@@ -632,25 +629,13 @@ async function emergencyHandler(amperage, voltage, object_id, ws) {
 // Возвращает список с изменениями в объектах
 async function getChangedObjectsHandler() {
     try {
-        let objects = [];
-
-        // async function getObjectStatus() {
-        //     const sql = `SELECT status FROM objects WHERE id = ?`;
-        //     const status = await executeQuery(sql, [object_id]);
-        //     return status[0].status;
-        // }
-        // async function getLatestMeasurementTimestamp(object_id) {
-        //     const sql = `SELECT start_timestamp FROM measurements WHERE object_id = ?`;
-        //     const start_timestamp = await executeQuery(sql, [object_id]);
-        //     return start_timestamp[0].start_timestamp;
-        // }
         async function getData() {
             const sql = `SELECT * FROM objects`;
             const result = await executeQuery(sql);
             return result;
         }
 
-        objects = await getData();
+        const objects = await getData();
 
         connectedUsers.forEach((item, i) => {
             console.log(i, "OBJECTCHANGES");
