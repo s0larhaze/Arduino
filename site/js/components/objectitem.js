@@ -11,6 +11,7 @@ export default class ObjectItem {
         this.data          = [];
         this.status        = status;
         this.parent        = parent;
+        this.isOpen        = false;
         this.filter        = { year: "null", month: "null", day: "null" };
         this.timestamp     = timestamp;
         this.timerInterval = null;
@@ -28,7 +29,7 @@ export default class ObjectItem {
             }
         });
 
-        console.log("result getObjectData from ObjectItem", this);
+        // console.log("result getObjectData from ObjectItem", this);
 
         // Если данные есть
         if (result && result.history && result.history.length) {
@@ -36,7 +37,7 @@ export default class ObjectItem {
             this.current = this.data.current || null;
 
             this.data = this.data.history.sort((a, b) => {
-                return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+                return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
             });
 
             this.data.forEach((item, i) => {
@@ -54,7 +55,7 @@ export default class ObjectItem {
                 }
             }
 
-            // Добавляем в список образцовое измерение  
+            // Добавляем в список образцовое измерение
             this.data.unshift(this.reference);
             // И если есть, текущее измерение по тревоге
             if (this.current) this.data.unshift(this.current);
@@ -66,25 +67,32 @@ export default class ObjectItem {
         this.self = this.self || document.createElement("ASIDE");
         this.self.innerHTML = null;
         this.self.classList.add("alertWindow");
+
+        // Метка, что окно существует
+        this.isOpen = true;
         // this.self.classList.add(this.name);
         this.parent.self.appendChild(this.self);
 
-        this.header = document.createElement("HEADER");
-        this.main = document.createElement("MAIN");
-        this.back = document.createElement("BUTTON");
-        this.startCheck = document.createElement("BUTTON");
-        this.changeName = document.createElement("INPUT");
-        this.changeNameBut = document.createElement("BUTTON");
-        this.clearBut = document.createElement("BUTTON");
-        this.deleteBut = document.createElement("BUTTON");
+        this.main             = document.createElement("MAIN");
+        this.timer            = document.createElement("SPAN");
+        this.table            = document.createElement("TABLE");
+        this.header           = document.createElement("HEADER");
+        this.changeName       = document.createElement("INPUT");
+
+        this.back             = document.createElement("BUTTON");
+        this.clearBut         = document.createElement("BUTTON");
+        this.deleteBut        = document.createElement("BUTTON");
+        this.startCheck       = document.createElement("BUTTON");
+        this.changeNameBut    = document.createElement("BUTTON");
         this.exportToExcelBut = document.createElement("BUTTON");
-        this.timer = document.createElement("SPAN");
-        this.selectTimeline = document.createElement("SECTION");
-        this.tableContainer = document.createElement("SECTION");
-        this.selectYear = document.createElement("SELECT");
-        this.selectMonth = document.createElement("SELECT");
-        this.selectDay = document.createElement("SELECT");
-        this.table = document.createElement("TABLE");
+
+        this.selectPin        = document.createElement("SELECT");
+        this.selectDay        = document.createElement("SELECT");
+        this.selectYear       = document.createElement("SELECT");
+        this.selectMonth      = document.createElement("SELECT");
+
+        this.selectTimeline   = document.createElement("SECTION");
+        this.tableContainer   = document.createElement("SECTION");
 
         // Кнопка назад
         this.back.textContent = "<";
@@ -123,6 +131,28 @@ export default class ObjectItem {
         this.changeNameBut.addEventListener('click', (event) => {
             this.changeObjectName();
         });
+
+        // Выбор пина
+        this.selectPin.name = "selectPin";
+        this.selectPin.classList.add("select");
+
+        for (let i = 1; i < 7; i++) {
+            let op = document.createElement("OPTION");
+                op.textContent = `Пин ${i}`;
+                op.value = i;
+            this.selectPin.appendChild(op);
+        }
+        let op = document.createElement("OPTION");
+            op.textContent = `Выберите пин`;
+            op.value = "null";
+            op.selected = true;
+        this.selectPin.appendChild(op);
+
+        this.selectPin.addEventListener("change", (event) => {
+            const value = event.target.value;
+
+            // Что-то отправить на сервер
+        })
         // Кнопка сброса данных
         this.clearBut.textContent = "Очистить данные";
         this.clearBut.type = "button";
@@ -187,6 +217,7 @@ export default class ObjectItem {
         this.header.appendChild(this.startCheck);
         this.header.appendChild(this.changeName);
         this.header.appendChild(this.changeNameBut);
+        this.header.appendChild(this.selectPin);
         this.header.appendChild(this.clearBut);
         this.header.appendChild(this.deleteBut);
         this.header.appendChild(this.exportToExcelBut);
@@ -214,6 +245,7 @@ export default class ObjectItem {
             alert("Имя не изменилось");
             return ;
         }
+
         if (!confirm(`Вы уверены, что хотите изменить имя объекта ${this.name} на ${name}`)) return;
         if (confirm("Сделать экспорт данных в excel?")) this.exportToExcel();
 
@@ -295,6 +327,7 @@ export default class ObjectItem {
 
         const result = await this.parent.handleQuery({ type: "startChecking", data: {name: this.name, id: this.id} });
         if (!result.status) {
+            console.log(result);
             this.startCheck.disabled = false;
             alert(`Запустить проверку не удалось. Причина: ${result.reason}`);
         }
@@ -346,7 +379,7 @@ export default class ObjectItem {
 
     // Утилитки
     finish() {
-        console.log(this.self);
+        this.isOpen = false;
         this.parent.self.removeChild(this.self);
     }
 
@@ -363,6 +396,40 @@ export default class ObjectItem {
         this.name = name || this.name;
 
         this.start();
+    }
+
+    rePrint(data) {
+        if (data && data.history && data.history.length) {
+            this.data = data;
+            this.current = this.data.current || null;
+
+            this.data = this.data.history.sort((a, b) => {
+                return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+            });
+
+            this.data.forEach((item, i) => {
+                if(item.isReferential) this.reference = this.data.splice(i, 1);
+            });
+
+            this.reference = this.reference[0] || this.reference;
+
+            // Рассчитываем время работы
+            if (this.reference){
+                let end = new Date(this.reference.timestamp).getTime();
+                let start = new Date(this.reference.start_timestamp).getTime();
+                if (!!(end && start)) {
+                    this.reference.workingHours = (end - start) / 1000 / 60;
+                }
+            }
+
+            // Добавляем в список образцовое измерение
+            this.data.unshift(this.reference);
+            // И если есть, текущее измерение по тревоге
+            if (this.current) this.data.unshift(this.current);
+
+            this.fillSelect();
+            this.fillTableBody(this.data);
+        }
     }
 
     getTimeString(start, end) {
@@ -545,7 +612,6 @@ export default class ObjectItem {
     }
 
     fillSelect() {
-        console.log(this.data);
         // Получаем данные
         // Начальное значение
         let yOption = document.createElement("OPTION");
@@ -623,7 +689,7 @@ export default class ObjectItem {
         current.textContent = "Сила тока I(A)";
         capacity.textContent = "Емкость C(А/ч)";
         power.textContent = "Мощность P(Вт)";
-        degradation.textContent = "Деградация %";
+        degradation.textContent = "Остаток %";
         workingHours.textContent = "Время работы";
         status.textContent = "Статус";
 

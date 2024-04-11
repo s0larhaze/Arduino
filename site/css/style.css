@@ -172,20 +172,15 @@
       margin-bottom: 50px;
   }
 
-  .select_year, .select_month, .select_day {
+
+
+  .select, .select_year, .select_month, .select_day {
       padding: var(--p-small);
       margin-right: var(--m-small);
       border-radius: var(--b-small);
       border: 1px solid var(--green);
 
       /* background-color: var(--green); */
-  }
-
-  .select_year option {
-      padding: var(--p-small);
-
-      border-radius: var(--b-small);
-      border: 1px solid var(--green);
   }
 
   .table_container {

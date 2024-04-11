@@ -29,46 +29,83 @@ app.use(cors({
     allowedHeaders: ['Content-Type']
 }))
 
+// Имитация бурной деятельности
+const imitationOfVigorousActivity = {
+    arduinoObjectRegistration: JSON.stringify({
+        type: "arduinoObjectRegistration",
+        data: {id: new Date().getTime() % 1000}
+    }),
+    arduinoStartedMeasurement: JSON.stringify({
+        type: "arduinoStartedMeasurement",
+        data: {id: 9}
+    }),
+    arduinoFinishedMeasurement: JSON.stringify({
+        type: "arduinoFinishedMeasurement",
+        data: {avg_current: 4.2, avg_voltage: 11.9, id: 9}
+    }),
+    arduinoEmergency: JSON.stringify({
+        type: "arduinoEmergency",
+        data: {current: 4.2, voltage: 11.9, id: 9}
+    }),
+    arduinoEmergencyStopped: JSON.stringify({
+        type: "arduinoEmergencyStopped",
+        data: {id: 9}
+    }),
+}
+
+
+// Сокет
 wss.on('connection', (socket) => {
-    console.log("Connection!");
+    console.log("Подключение!");
 
-    socket.on('message', message => {
-        handleMessage(message, socket);
-    });
-
-    socket.onclose = () => {
-        console.log('Connection closed!');
-        for (let index = 0; index < connectedUsers.length; index++) {
-            if (connectedUsers[index] === socket) {
-                connectedUsers.splice(index, 1);
-            }
-        }
+    socket.onmessage = (event) => {
+        handleMessage(event.data, socket);
     };
 
-    console.log(connectedUsers.length);
+    // Имитация бурной деятельности
+    // let interval = setInterval(() => {
+    //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
+    // }, 1000);
+    // setTimeout(() => {
+    //     clearInterval(interval);
+    //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergencyStopped});
+    // }, 30000);
+
+    socket.onclose = () => {
+        console.log('Подключение закрыто');
+        connectedUsers.forEach((item, i) => {
+            if (item === socket) connectedUsers.splice(i, 1);
+        });
+    };
 })
 
+// Обработка сообщений сокета
 function handleMessage(message, ws) {
-    let message_json = null;
-    let object_id    = null;
-    let type         = null;
-    let data         = null;
+    let object_socket = null;
+    let message_json  = null;
+    let object_name   = null;
+    let object_id     = null;
+    let type          = null;
+    let data          = null;
+
     try {
         message_json = JSON.parse(message);
         type         = message_json.type;
         data         = message_json.data;
-        object_id    = data.id;
-        object_name  = data.name;
-    } catch {
-        console.log("No reasonable message.");
+        if (data) {
+            object_id    = data.id;
+            object_name  = data.name;
+        }
+    } catch (e) {
+        // console.log("Сообщение не пришло.", e, message);
     }
-
-    console.log("MESSAGE_JSON", message_json);
-
-    let object_socket = null;
+    console.log('message_json', message_json);
 
     switch (type) {
-        // Adruino related message handling
+        // От Ардуино
+        case 'arduinoObjectRegistration':
+            objectRegistrationHandler(object_id, ws);
+            break;
         case 'arduinoStartedMeasurement':
             measurementStartedDBOperation(object_id);
             break;
@@ -76,19 +113,15 @@ function handleMessage(message, ws) {
             measurementFinishedDBOperation(data.avg_current, data.avg_voltage, object_id);
             break;
         case 'arduinoEmergency':
-            console.log("EMERGENCY!!!");
-            emergencyHandler(data.current, data.voltage, object_id, ws);
+            emergencyHandler(data.current, data.voltage, object_id);
             break;
         case 'arduinoEmergencyStopped':
             emergencyStoppedHandler(object_id);
             break;
-        case 'arduinoObjectRegistration':
-            objectRegistrationHandler(object_id, ws);
-            break;
 
-        // Adruino-unrelated message handling
-        case 'userObjectRegistration':
-            userObjectRegistration(ws);
+        // От Клиента
+        case 'userRegistration':
+            userRegistration(ws);
             break;
         case 'getObjects':
             getObjectsHandler(ws);
@@ -108,27 +141,23 @@ function handleMessage(message, ws) {
         case 'changeObjectName':
             changeObjectName(data.id, data.name, data.new_name, ws);
             break;
-        // Что это?
-        // case 'getCurrentObjectRegistrationSocket':
-        //     ws.send(JSON.stringify({
-        //         type: "getCurrentObjectRegistrationSocket",
-        //         data: {
-        //             objectSocket: connectedObjects.get(object_id)
-        //         }
-        //     }));
-        //     break;
         case 'startChecking':
             object_socket = connectedObjects[data.id];
 
             if (!object_socket) {
-                console.log("object_socket is not present.");
+                ws.send(JSON.stringify({
+                    type: 'startChecking',
+                    data: {
+                        id: object_id,
+                        name: object_name,
+                        status: 0,
+                        reason: "Объект недоступен",
+                    }
+                }));
                 break;
             }
 
             startChecking(data.id, object_socket);
-            break;
-        case 'getObjectMeasurementData':
-            getObjectMeasurementDataHandler(object_id, ws);
             break;
         case 'startMockEmergency':
             object_socket = connectedObjects[data.id];
@@ -149,7 +178,7 @@ function handleMessage(message, ws) {
 // Клиент
 
 // Регистрирует пользователей и инициализирует их обработку
-function userObjectRegistration(ws) {
+function userRegistration(ws) {
     connectedUsers.push(ws);
     getObjectsHandler(ws);
 }
@@ -157,18 +186,32 @@ function userObjectRegistration(ws) {
 // Возвращает список объектов
 async function getObjectsHandler(ws, type = "getObjects") {
     const objects = [];
-    const selectObjects = `SELECT id, name, status, timestamp FROM objects`;
 
-    const result = await executeQuery(selectObjects);
-    result.forEach((item, i) => {
-        if (item.timestamp) {
-            item.timestamp = new Date(item.timestamp).getTime();
+    async function selectObjects() {
+        const selectObjects = `SELECT id, name, status, timestamp FROM objects`;
+        try {
+            const result = await executeQuery(selectObjects);
+            return result;
+        } catch (e) {
+            console.log(e);
+            throw {message: "Ошибка при получении объектов", data: {error: e, type: type}}
         }
-    });
+    }
 
-    connectedUsers.forEach((item, i) => {
-        item.send(JSON.stringify({ type: type, data: result }));
-    });
+    try {
+        const result = await selectObjects();
+        result.forEach((item, i) => {
+            if (item.timestamp) {
+                item.timestamp = new Date(item.timestamp).getTime();
+            }
+        });
+
+        connectedUsers.forEach((item, i) => {
+            item.send(JSON.stringify({ type: type, data: result }));
+        });
+    } catch (e) {
+        console.log(e.message, e.data);
+    }
 }
 
 // Возвращает данные по объекту
@@ -176,58 +219,69 @@ async function getObjectData(id, name, ws) {
     let current       = null;
     let history       = [];
 
-    let object_status = null;
-
     async function getEmergencyData(id) {
         const sql = `SELECT * FROM emergency WHERE object_id = ? ORDER BY timestamp asc`;
-        const result = await executeQuery(sql, [id]);
-        return result;
+        try {
+            const result = await executeQuery(sql, [id]);
+            return result;
+        } catch (e) {
+            throw {message: "Не удалось получить тревоги", data: {erroe: e, id: id}}
+        }
     }
 
     async function getMeasurementsData(id) {
         const sql = `SELECT id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id, isReferential FROM measurements WHERE object_id = ?`;
-        const result = await executeQuery(sql, [id]);
-        return result;
+        try {
+            const result = await executeQuery(sql, [id]);
+            return result;
+        } catch (e) {
+            throw {message: "Не удалось получить измерения", data: {erroe: e, id: id}}
+        }
     }
 
     async function getObjectStatus(id) {
         const sql = `SELECT status FROM objects WHERE id = ?`;
-        const result = await executeQuery(sql, [id]);
-        return result[0].status;
-
+        try {
+            const result = await executeQuery(sql, [id]);
+            return result[0].status;
+        } catch (e) {
+            throw {message: "Не удалось получить статус объекта", data: {error: e, id: id}}
+        }
     }
+    try {
+        const object_status = await getObjectStatus(id);
+        const measurements  = await getMeasurementsData(id);
+        const emergencies   = await getEmergencyData(id);
 
-    object_status = await getObjectStatus(id);
+        // добавляем тревоги в историю
+        emergencies.forEach((item, i) => {
+            item['status'] = 2;
+            item.timestamp = new Date(item.timestamp).getTime();
+            history.push(item);
+        });
 
-    const emergencies  = await getEmergencyData(id);
-    const measurements = await getMeasurementsData(id);
+        if (object_status === 2) current = history.shift();
 
-    // добавляем тревоги в историю
-    emergencies.forEach((item, i) => {
-        item['status'] = 2;
-        item.timestamp = new Date(item.timestamp).getTime();
-        history.push(item);
-    });
+        // Добавляем измерения в историю
+        measurements.forEach((item, i) => {
+            item['status'] = 1;
+            history.push(item);
+        });
 
-    if (object_status === 2) current = history.shift();
+        let response = {};
+            response.type = 'getObjectData';
+            response.data = {
+                history: history,
+                name: name,
+                id: id,
+            };
+        // Если есть данные по текущей сработке
+        if (current) response.data['current'] = current;
 
-    // Добавляем измерения в историю
-    measurements.forEach((item, i) => {
-        item['status'] = 1;
-        history.push(item);
-    });
-
-    let response = {};
-        response.type = 'getObjectData';
-        response.data = {
-            history: history,
-            name: name,
-            id: id,
-        };
-    // Если есть данные по текущей сработке
-    if (current) response.data['current'] = current;
-
-    ws.send(JSON.stringify(response));
+        ws.send(JSON.stringify(response));
+    } catch (e) {
+        console.log(e.message, e.data);
+    }
 }
 
 // Очищаем данные по объекту
@@ -237,56 +291,75 @@ async function clearData(id, name, ws) {
         return;
     }
 
-    try {
-        async function createArchiveDBQuery() {
-            const sql = "CREATE DATABASE IF NOT EXISTS archive_battery";
+    async function createArchiveDBQuery() {
+        const sql = "CREATE DATABASE IF NOT EXISTS archive_battery";
+        try {
             const result = await executeQuery(sql);
             return result;
-        };
-        async function createArchiveTablesQuery() {
-            const createObjectsTable = `CREATE TABLE IF NOT EXISTS objects (
-                id int, name text, status tinyint
-            )`;
-            const createArchiveMeasurementsTable = `CREATE TABLE IF NOT EXISTS measurements (
-                id int,
-                avg_current float,
-                avg_voltage float,
-                start_timestamp timestamp,
-                end_timestamp timestamp,
-                object_id int,
-                isReferential boolean
-            )`;
-            const createArchiveEmergencyTable = `CREATE TABLE IF NOT EXISTS emergency (
-                id int,
-                current float,
-                voltage float,
-                timestamp timestamp,
-                object_id int
-            )`;
+        } catch (e) {
+            throw {message: "Не удалось создать архивную бд", data: {error: e}}
+        }
+    };
+    async function createArchiveTablesQuery() {
+        const createObjectsTable = `
+        CREATE TABLE IF NOT EXISTS objects (id int, name text, status tinyint)
+        `;
+        const createArchiveMeasurementsTable = `
+        CREATE TABLE IF NOT EXISTS measurements (
+            id int,
+            avg_current float,
+            avg_voltage float,
+            start_timestamp timestamp,
+            end_timestamp timestamp,
+            object_id int,
+            isReferential boolean
+        )
+        `;
+        const createArchiveEmergencyTable = `
+        CREATE TABLE IF NOT EXISTS emergency (
+            id int,
+            current float,
+            voltage float,
+            timestamp timestamp,
+            object_id int
+        )
+        `;
 
+        try {
             await executeQuery(createObjectsTable, [], 'archive_battery');
             await executeQuery(createArchiveMeasurementsTable, [], 'archive_battery');
             await executeQuery(createArchiveEmergencyTable, [], 'archive_battery');
-        }
-        async function dumpArchiveTablesQuery() {
-            // const dumpObjectRecords = `INSERT INTO archive_battery.objects SELECT * from battery.objects WHERE id = ?`;
-            const dumpMeasurementRecords = `INSERT INTO archive_battery.measurements SELECT * from battery.measurements WHERE object_id = ?`;
-            const dumpEmergencyRecords = `INSERT INTO archive_battery.emergency SELECT * from battery.emergency WHERE object_id = ?`;
 
-            // await executeQuery(dumpObjectRecords, [id], null);
+        } catch (e) {
+            throw {message: "Не удалось создать архивную бд", data: {error: e}}
+        }
+    }
+    async function dumpArchiveTablesQuery() {
+        const dumpMeasurementRecords = `
+        INSERT INTO archive_battery.measurements SELECT * from battery.measurements WHERE object_id = ?
+        `;
+        const dumpEmergencyRecords = `
+        INSERT INTO archive_battery.emergency SELECT * from battery.emergency WHERE object_id = ?
+        `;
+        try {
             await executeQuery(dumpMeasurementRecords, [id], null);
             await executeQuery(dumpEmergencyRecords, [id], null);
+        } catch (e) {
+            throw {message: "Не удалось сохранить данные в архив", data: {error: e}}
         }
-        async function resetBatteryTablesQuery() {
-            // const resetObjectRecord = `DELETE FROM objects WHERE id = ?`;
-            const resetMeasurementRecords = `DELETE FROM measurements WHERE object_id = ?`;
-            const resetEmergencyRecords = `DELETE FROM emergency WHERE object_id = ?`;
-
-            // await executeQuery(resetObjectRecord, [id]);
+    }
+    async function resetBatteryTablesQuery() {
+        const resetMeasurementRecords = `DELETE FROM measurements WHERE object_id = ?`;
+        const resetEmergencyRecords = `DELETE FROM emergency WHERE object_id = ?`;
+        try {
             await executeQuery(resetMeasurementRecords, [id]);
             await executeQuery(resetEmergencyRecords, [id]);
+        } catch (e) {
+            throw {message: "Не удалось очистить данные", data: {error: e}}
         }
+    }
 
+    try {
         await createArchiveDBQuery();
         await createArchiveTablesQuery();
         await dumpArchiveTablesQuery();
@@ -303,7 +376,7 @@ async function clearData(id, name, ws) {
             }));
         }
     } catch (e) {
-        console.log(e);
+        console.log(e.message, e.data);
         if (ws) {
             ws.send(JSON.stringify({
                 type: 'clearData',
@@ -320,18 +393,24 @@ async function clearData(id, name, ws) {
 
 // Удаляет объект из списка
 async function deleteObject(id, name, ws) {
-    try {
-        async function dumpObjectQuery(id) {
-            const dumpObjectRecords = `INSERT INTO archive_battery.objects SELECT id, name, status from battery.objects WHERE id = ?`;
-
+    async function dumpObjectQuery(id) {
+        const dumpObjectRecords = `INSERT INTO archive_battery.objects SELECT id, name, status from battery.objects WHERE id = ?`;
+        try {
             await executeQuery(dumpObjectRecords, [id], null);
+        } catch (e) {
+            throw {message: "Не удалось сохранить объект", data: {error: e}}
         }
-        async function resetObjectQuery(id) {
-            const resetObjectRecord = `DELETE FROM objects WHERE id = ?`;
-
+    }
+    async function resetObjectQuery(id) {
+        const resetObjectRecord = `DELETE FROM objects WHERE id = ?`;
+        try {
             await executeQuery(resetObjectRecord, [id]);
+        } catch (e) {
+            throw {message: "Не удалось удалить объект", data: {error: e}}
         }
+    }
 
+    try {
         await clearData(id, name, ws);
         await dumpObjectQuery(id);
         await resetObjectQuery(id);
@@ -341,18 +420,18 @@ async function deleteObject(id, name, ws) {
             data: {
                 id: id,
                 name: name,
-                'status': true,
+                status: true,
             }
         }));
     } catch (e) {
-        console.log(e);
+        console.log(e.message, e.data);
         ws.send(JSON.stringify({
             type: 'deleteObject',
             data: {
                 id: id,
                 name: name,
-                'status': false,
-                'reason': e,
+                status: false,
+                reason: e.message,
             }
         }));
     }
@@ -362,22 +441,23 @@ async function deleteObject(id, name, ws) {
 async function changeObjectName(id, name, new_name, ws) {
     try {
         const sql = `UPDATE objects SET name = ? WHERE id = ?`;
-        executeQuery(sql, [new_name, id]);
+        await executeQuery(sql, [new_name, id]);
         ws.send(JSON.stringify({
             type: 'changeObjectName',
             data: {
                 id: id,
                 oldName: name,
                 newName: new_name,
-                'status': true,
+                status: true,
             }
         }));
     } catch (e) {
         ws.send(JSON.stringify({
             type: 'changeObjectName',
             data: {
-                'status': false,
-                'reason': e,
+                id: id,
+                status: false,
+                reason: "Имя должно быть уникальным",
             }
         }));
     }
@@ -385,23 +465,12 @@ async function changeObjectName(id, name, new_name, ws) {
 
 // Ардуино
 
-// Запускает проверку на ардуино
-function startChecking(object_id, object_socket) {
-    if (!object_id) {
-        console.log("object_id cannot be empty");
-        return;
-    }
-
-    object_socket.send(JSON.stringify({ type: "executePlannedMeasurement" }));
-}
-
 // Регистрация объектов
 async function objectRegistrationHandler(object_id, ws) {
     if (!object_id) {
         console.log("object_id cannot be empty, undefined or null");
         return;
     }
-
     async function checkIfObjectPresentInDB() {
         const sql = `SELECT COUNT(*) as count FROM objects WHERE id = ?`
         const result = await executeQuery(sql, [object_id]);
@@ -413,8 +482,7 @@ async function objectRegistrationHandler(object_id, ws) {
         const sql = `
         INSERT INTO objects (id, name, status)
         VALUES (?, '? объект', 0)`;
-        const result = await executeQuery(sql, [object_id, object_id]);
-        console.log(result);
+        await executeQuery(sql, [object_id, object_id]);
     }
 
     const count = await checkIfObjectPresentInDB();
@@ -422,80 +490,79 @@ async function objectRegistrationHandler(object_id, ws) {
     connectedObjects[object_id] = ws;
 }
 
-// Ответ на начало измерений
-async function measurementStartedDBOperation(object_id) {
+// Запускает проверку на ардуино
+function startChecking(object_id, object_socket) {
     if (!object_id) {
         console.log("object_id cannot be empty");
         return;
+    }
+    object_socket.send(JSON.stringify({ type: "executePlannedMeasurement" }));
+}
+
+// Ответ на начало измерений
+// Можно перевести с броткаст на точечный ответ
+async function measurementStartedDBOperation(object_id, socket = null) {
+    console.log("start mes");
+    if (!object_id) {
+        console.log("id пуст");
+        return;
+    }
+
+    async function insertRecord(refFlag) {
+        const sql = `
+            INSERT INTO measurements (start_timestamp, object_id, isReferential)
+            VALUES (?, ?, ?)`;
+        try {
+            await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id, refFlag]);
+        } catch (e) {
+            throw {message: "Не удалось создать запись", data: {error: e}}
+        } finally {
+
+        }
+    }
+    async function checkIfRecordsExist() {
+        const sql = `SELECT COUNT(*) as count FROM measurements`;
+        const result = await executeQuery(sql);
+        return result[0].count;
+    }
+    async function changeObjectStatus(object_id) {
+        const sql = `UPDATE objects SET status = 1, timestamp = ? WHERE id = '?'`;
+        try {
+            await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
+        } catch (e) {
+            throw {message: "Не удалось обновить статус", data: {error: e}}
+        }
     }
 
     try {
         let object_name = null;
 
-        async function insertRecord(refFlag) {
-            const sql = `
-                INSERT INTO measurements (start_timestamp, object_id, isReferential)
-                VALUES (?, ?, ?)`;
-            await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id, refFlag]);
-        }
-        async function checkIfRecordsExist() {
-            const sql = `SELECT COUNT(*) as count FROM measurements`;
-            const result = await executeQuery(sql);
-            return result[0].count;
-        }
-        async function changeObjectStatus(object_id) {
-            try {
-                const sql = `UPDATE objects SET status = 1, timestamp = ? WHERE id = '?'`;
-                await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
-                return true;
-            } catch (e) {
-                return false;
-                console.log(e);
-            }
-        }
-
         const reqEx = await checkIfRecordsExist();
         await insertRecord(+!reqEx % 2);
+        await changeObjectStatus(object_id);
 
-
-        let result = await changeObjectStatus(object_id);
         object_name = await getObjectNameById(object_id);
 
-        if (result) {
-            connectedUsers.forEach((user, i) => {
-                user.send(JSON.stringify({
-                    type: 'startChecking',
-                    data: {
-                        name: object_name,
-                        id: object_id,
-                        status: 1,
-                    }
-                }));
-                getChangedObjectsHandler();
-            });
-        } else {
-            connectedUsers.forEach((user, i) => {
-                user.send(JSON.stringify({
-                    type: 'startChecking',
-                    data: {
-                        name: object_name,
-                        id: object_id,
-                        status: 0,
-                        reason: "Ошибка измерения",
-                    }
-                }));
-            });
-        }
-    } catch (e) {
-        console.log(e);
         connectedUsers.forEach((user, i) => {
             user.send(JSON.stringify({
                 type: 'startChecking',
                 data: {
                     name: object_name,
                     id: object_id,
+                    status: 1,
+                }
+            }));
+        });
+        getChangedObjectsHandler();
+    } catch (e) {
+        console.log(e.message, e.data);
+        connectedUsers.forEach((user, i) => {
+            user.send(JSON.stringify({
+                type: 'startChecking',
+                data: {
+                    id: object_id,
                     status: 0,
-                    reason: "Ошибка измерения",
+                    reason: e.message,
                 }
             }));
         });
@@ -504,146 +571,154 @@ async function measurementStartedDBOperation(object_id) {
 
 // Сообщение о конце проверки
 async function measurementFinishedDBOperation(avg_current, avg_voltage, object_id) {
-    // Как менять данные на горячую
     async function updateMeasurements() {
         const sql = `UPDATE measurements SET
                     avg_current = ?,
                     avg_voltage = ?,
                     end_timestamp = ?
                     WHERE object_id = ? AND end_timestamp is NULL`;
-        await executeQuery(sql, [avg_current, avg_voltage, moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
+        try {
+            await executeQuery(sql, [avg_current, avg_voltage, moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
+        } catch (e) {
+            throw {message: "Не удалось изменить данные по измерениям", data: {error: e}}
+        }
     }
     async function updateObjectStatus() {
         const sql = `UPDATE objects SET status = 0, timestamp = null WHERE id = ?`;
-        await executeQuery(sql, [object_id]);
+        try {
+            await executeQuery(sql, [object_id]);
+        } catch (e) {
+            throw {message: "Не удалось обновить статус объекта", data: {error: e}}
+        }
     }
 
-    await updateMeasurements();
-    await updateObjectStatus();
-
-    getChangedObjectsHandler();
-}
-
-// Сообщение о завершении сработки
-function emergencyStoppedHandler(object_id) {
     try {
-        const sql = `UPDATE objects SET status = 0, timestamp = null WHERE id = ?`;
-        executeQuery(sql, [object_id]);
+        await updateMeasurements();
+        await updateObjectStatus();
 
-        connectedUsers.forEach((item, i) => {
-            item.send(JSON.stringify({
-                type: 'emergencyStopped',
-                data: {
-                    id: object_id
-                },
-            }));
-        });
+        getChangedObjectsHandler();
     } catch (e) {
-        console.log(e);
-    }
-}
-
-// Получаем данные по измерениям и отправляем их клиенту?
-async function getObjectMeasurementDataHandler(object_id, ws) {
-    if (object_id === '') {
-        console.log("object_id cannot be empty");
-        return;
-    }
-
-    try {
-        const sql = `SELECT * FROM measurements WHERE object_id = ?`;
-        const results = await executeQuery(sql, [object_id]);
-        ws.send(JSON.stringify({ type: 'getObjectMeasurementData', data: results }));
-    } catch (error) {
-        console.error(error);
+        console.log(e.message, e.data);
     }
 }
 
 // Отправляет данные по сработкам
-async function emergencyHandler(amperage, voltage, object_id, ws) {
+async function emergencyHandler(amperage, voltage, id) {
     let name = '';
     let current = null;
     let history = [];
 
-    async function getObjectStatus() {
+    async function getObjectStatus(id) {
         const sql = `SELECT status FROM objects WHERE id = ?`;
-        const result = await executeQuery(sql, [object_id]);
-        return result[0].status;
+        try {
+            const result = await executeQuery(sql, [id]);
+            return result[0].status;
+        } catch (e) {
+            throw {message: "Не удалось получить статус объекта", data: {error: e}}
+        }
     }
-
-    async function getObjects(id) {
-        const sql = `SELECT * FROM objects WHERE id = ?`;
-        const result = await executeQuery(sql, [id]);
-        return result;
-    }
-
-    async function changeObjectStatus() {
+    async function changeObjectStatus(id) {
         const sql = `UPDATE objects SET status = 2, timestamp = ? where id = ?`;
-        const result = await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), object_id]);
+        try {
+            await executeQuery(sql, [moment().format('YYYY-MM-DD HH:mm:ss'), id]);
+        } catch (e) {
+            throw {message: "Не удалось обновить статус объекта", data: {error: e}}
+        }
     }
-    async function insertIntoEmergency (amperage) {
+
+    async function insertIntoEmergency (amperage, id) {
         const sql = `INSERT INTO emergency (current, voltage, timestamp, object_id)
                     VALUES (?, ?, ?, ?)`;
-        await executeQuery(sql, [
-            amperage,
-            voltage,
-            moment().format('YYYY-MM-DD HH:mm:ss'),
-            object_id
-        ]);
+        try {
+            await executeQuery(sql, [
+                amperage,
+                voltage,
+                moment().format('YYYY-MM-DD HH:mm:ss'),
+                id
+            ]);
+        } catch (e) {
+            throw {message: "Не удалось добавить запись о тревоге", data: {error: e}}
+        }
     }
-    async function getEmergencyData(object_id) {
+
+    async function getEmergencyData(id) {
         const sql = `SELECT * FROM emergency WHERE object_id = ? ORDER BY timestamp asc`;
-        const result = await executeQuery(sql, [object_id]);
-        return result;
+        try {
+            const result = await executeQuery(sql, [id]);
+            return result;
+        } catch (e) {
+            throw {message: "Не удалось получить тревоги", data: {erroe: e, id: id}}
+        }
     }
-    async function getMeasurementsData(object_id) {
-        const sql = `SELECT id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id FROM measurements WHERE object_id = ?`;
-        const result = await executeQuery(sql, [object_id]);
-        return result;
+    async function getMeasurementsData(id) {
+        const sql = `SELECT id, avg_current as current, avg_voltage as voltage, start_timestamp, end_timestamp as timestamp, object_id, isReferential FROM measurements WHERE object_id = ?`;
+        try {
+            const result = await executeQuery(sql, [id]);
+            return result;
+        } catch (e) {
+            throw {message: "Не удалось получить измерения", data: {erroe: e, id: id}}
+        }
     }
 
-    const status = await getObjectStatus();
-    if (!status) {
-        await changeObjectStatus();
-        const objects = await getObjects(object_id);
-        ws.send(JSON.stringify({
-            type: 'objectsChanges',
-            data: {objects},
-        }));
-    }
-    await insertIntoEmergency(amperage);
+    try {
+        // Проверяем и меняем статус, если нужно
+        const status = await getObjectStatus(id);
+        if (!status) {
+            await changeObjectStatus(id);
+            getChangedObjectsHandler();
+        }
 
-    name = await getObjectNameById(object_id);
+        await insertIntoEmergency(amperage, id);
 
-    const emergencies = await getEmergencyData(name);
+        name = await getObjectNameById(id);
 
-    current = emergencies.shift();
 
-    emergencies.forEach((item, i) => history.push(item));
 
-    const measurements = await getMeasurementsData(object_id);
+        const measurements  = await getMeasurementsData(id);
+        const emergencies   = await getEmergencyData(id);
 
-    measurements.forEach((item, i) => history.push(item));
+        // добавляем тревоги в историю
+        emergencies.forEach((item, i) => {
+            item['status'] = 2;
+            item.timestamp = new Date(item.timestamp).getTime();
+            history.push(item);
+        });
 
-    if (!current) {
-        ws.send(JSON.stringify({
-            type: 'objectDataChanges',
-            data: {
-                id: object_id,
-                name: name,
+        current = history.shift();
+
+        // Добавляем измерения в историю
+        measurements.forEach((item, i) => {
+            item['status'] = 1;
+            history.push(item);
+        });
+
+        let response = {};
+            response.type = 'objectDataChanges';
+            response.data = {
                 history: history,
-            }
-        }));
-    } else {
-        ws.send(JSON.stringify({
-            type: 'objectDataChanges',
-            data: {
-                id: object_id,
                 name: name,
-                current: current,
-                history: history
-            }
-        }));
+                id: id,
+            };
+        // Если есть данные по текущей сработке
+        if (current) response.data['current'] = current;
+
+        connectedUsers.forEach((item, i) => {
+            item.send(JSON.stringify(response));
+        });
+
+    } catch (e) {
+        console.log(e.message, e.data);
+    }
+}
+
+// Сообщение о завершении сработки
+async function emergencyStoppedHandler(object_id) {
+    try {
+        const sql = `UPDATE objects SET status = 0, timestamp = null WHERE id = ?`;
+        await executeQuery(sql, [object_id]);
+        getChangedObjectsHandler();
+    } catch (e) {
+        console.log("Не удалось завершить тревогу", e);
     }
 }
 
@@ -659,11 +734,10 @@ async function getChangedObjectsHandler() {
         const objects = await getData();
 
         connectedUsers.forEach((item, i) => {
-            console.log(i, "OBJECTCHANGES");
             item.send(JSON.stringify({ type: 'objectsChanges', data: objects }));
         });
     } catch (e) {
-        console.log(e);
+        console.log("Не удалось отправить измененные объекты", e);
     }
 }
 
@@ -674,8 +748,12 @@ console.log(id);
 */
 async function getObjectIdByName(name) {
     const sql = `SELECT id FROM objects WHERE name = ?`;
-    const res = await executeQuery(sql, [name]);
-    return res[0].id;
+    try {
+        const res = await executeQuery(sql, [name]);
+        return res[0].id;
+    } catch (e) {
+        throw {message: "Не удалось найти id по имени", data: {error: e, name: name}};
+    }
 }
 
 /*
@@ -685,29 +763,20 @@ console.log(name);
 */
 async function getObjectNameById(id) {
     const sql = `SELECT name FROM objects WHERE id = ?`;
-    const res = await executeQuery(sql, [id]);
-    return res[0].name;
-}
 
-// // ENUMS
-// const objectStates = {
-//     OBJECT_CHILL: 0,
-//     OBJECT_MEASURING: 1,
-//     OBJECT_EMERGENCY: 2,
-// }
-//
-// const messageTypes = {
-//     MESSAGE_STARTED_MEASURING: 0,
-//     MESSAGE_FINISHED_MEASURING: 1,
-//     MESSAGE_EMERGENCY: 2
-// }
-// // END ENUMS
+    try {
+        const res = await executeQuery(sql, [id]);
+        return res[0].name;
+    } catch (e) {
+        throw {message: "Не удалось найти имя по id", data: {error: e, id: id}}
+    }
+}
 
 // DB SETUP
 
 // Создаем пул соединений
 const pool = mysql.createPool({
-    connectionLimit: 10, // Максимальное количество соединений в пуле
+    connectionLimit: 64, // Максимальное количество соединений в пуле
     host: "localhost",
     user: "root",
     password: "root",
@@ -768,22 +837,21 @@ async function createDBQuery() {
     const sql = "CREATE DATABASE IF NOT EXISTS battery";
     try {
         await executeQuery(sql, [], null);
-        console.log("Database created or already exists");
-    } catch (error) {
-        console.error("Error creating database:", error);
-        throw error;
+    } catch (e) {
+        throw {message: "Ошибка создания базы данных", data: {error: e}};
     }
 }
 
 // Функция для создания таблиц
 async function createTablesQuery() {
     const createObjectsTableQuery = `
-        CREATE TABLE IF NOT EXISTS objects (
-            id INT PRIMARY KEY,
-            name TEXT,
-            status TINYINT,
-            timestamp TIMESTAMP NULL DEFAULT NULL
-        )`;
+    CREATE TABLE IF NOT EXISTS objects (
+        id INT PRIMARY KEY AUTO_INCREMENT,
+        name TEXT,
+        status TINYINT,
+        timestamp TIMESTAMP NULL DEFAULT NULL,
+        UNIQUE (name(511))
+    )`;
     const createMeasurementsTableQuery = `
         CREATE TABLE IF NOT EXISTS measurements (
             id INT AUTO_INCREMENT PRIMARY KEY,
@@ -805,12 +873,20 @@ async function createTablesQuery() {
 
     try {
         await executeQuery(createObjectsTableQuery);
+    } catch (e) {
+        throw {message: "Не удалось создать таблицу Объекты", data: {error: e}};
+    }
+
+    try {
         await executeQuery(createMeasurementsTableQuery);
+    } catch (e) {
+        throw {message: "Не удалось создать таблицу Измерения", data: {error: e}};
+    }
+
+    try {
         await executeQuery(createEmergencyTableQuery);
-        console.log("Tables created or already exist");
-    } catch (error) {
-        console.error("Error creating tables:", error);
-        throw error;
+    } catch (e) {
+        throw {message: "Не удалось создать таблицу Тревоги", data: {error: e}};
     }
 }
 
@@ -819,9 +895,9 @@ async function setupDatabase() {
     try {
         await createDBQuery();
         await createTablesQuery();
-        console.log("All DB setups have been finished successfully!");
-    } catch (error) {
-        console.error("Error setting up database:", error);
+        console.log("База данных готова");
+    } catch (e) {
+        console.log(e.message, e.data);
     }
 }
 
