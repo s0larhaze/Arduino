@@ -84,7 +84,7 @@ void measureBattery() {
     current_mean += (current - current_mean) / float(measured_times);
 
     delay(MEASURE_DELAY);
-    if (voltage <= 11.7) {
+    if (voltage <= 10.9) {
       JsonDocument jsdoc;
 
       jsdoc["message_type"] = 1;

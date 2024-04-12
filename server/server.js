@@ -97,7 +97,7 @@ function handleMessage(message, ws) {
             object_name  = data.name;
         }
     } catch (e) {
-        // console.log("Сообщение не пришло.", e, message);
+        console.log("Сообщение не пришло.", e, message);
     }
     console.log('message_json', message_json);
 
@@ -260,7 +260,7 @@ async function getObjectData(id, name, ws) {
             history.push(item);
         });
 
-        if (object_status === 2) current = history.shift();
+        if (object_status === 2) current = history.pop();
 
         // Добавляем измерения в историю
         measurements.forEach((item, i) => {
@@ -677,15 +677,16 @@ async function emergencyHandler(amperage, voltage, id) {
         const measurements  = await getMeasurementsData(id);
         const emergencies   = await getEmergencyData(id);
 
+        
         // добавляем тревоги в историю
         emergencies.forEach((item, i) => {
             item['status'] = 2;
             item.timestamp = new Date(item.timestamp).getTime();
             history.push(item);
         });
-
-        current = history.shift();
-
+        
+        current = history.pop();
+        
         // Добавляем измерения в историю
         measurements.forEach((item, i) => {
             item['status'] = 1;
@@ -701,6 +702,7 @@ async function emergencyHandler(amperage, voltage, id) {
             };
         // Если есть данные по текущей сработке
         if (current) response.data['current'] = current;
+        console.log("resp", response);
 
         connectedUsers.forEach((item, i) => {
             item.send(JSON.stringify(response));

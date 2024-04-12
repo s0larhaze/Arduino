@@ -712,6 +712,7 @@ export default class ObjectItem {
         if (this.tbody) this.tbody.remove();
 
         this.tbody = document.createElement("TBODY");
+        this.emergencyTimer = null;
         data.forEach((item, i) => {
             const workingHours = document.createElement("TD");
             const degradation  = document.createElement("TD");
@@ -746,7 +747,7 @@ export default class ObjectItem {
             }
 
             let capacityValue = (item.workingHours)
-            ? `${(item.current * item.workingHours / 60).toFixed(2)}`
+            ? `${((item.voltage * item.current * item.workingHours / 60) / (item.voltage * 0.7)).toFixed(2)}`
             : '-';
             // Переделать на проверку на null
             th      .textContent = `${date}`
@@ -768,34 +769,49 @@ export default class ObjectItem {
             // Рассчет времени работы
             let workingHoursDuration;
 
+            
             // Если есть время работы (начальная и конечная даты)
             if (item.workingHours) {
                 workingHoursDuration = item.workingHours;
-                if (item.status === 2) {
-                    workingHoursDuration = (Math.abs(this.reference.current) * this.reference.workingHours) / Math.abs(item.current);
-                }
                 workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
-                    ? Math.floor(workingHoursDuration / 60)
-                    : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
-                        ? Math.floor(workingHoursDuration % 60)
-                        : `0${Math.floor(workingHoursDuration % 60)}`}`;
+                ? Math.floor(workingHoursDuration / 60)
+                : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
+                    ? Math.floor(workingHoursDuration % 60)
+                    : `0${Math.floor(workingHoursDuration % 60)}`}`;
+                    
             } else {
-                workingHoursDuration = "-";
+                workingHoursDuration = "-:-";
+            }
+            if (item.status === 2 && this.current === item) {
+                workingHoursDuration = (Math.abs(this.reference.current) * this.reference.workingHours) / Math.abs(item.current);
+                workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
+                ? Math.floor(workingHoursDuration / 60)
+                : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
+                    ? Math.floor(workingHoursDuration % 60)
+                    : `0${Math.floor(workingHoursDuration % 60)}`}`;
+                // console.log("wh", workingHoursDuration);
+                
+                
             }
             workingHours.textContent = workingHoursDuration;
 
-
+            
             // Обратный отсчет и метка у тревожной записи
             if (this.current === item) {
-                setInterval(() => {
-                    let hours = +workingHours.textContent.split(":")[0];
-                    let minutes = +workingHours.textContent.split(":")[1];
-                    if (--minutes < 0) {
-                        hours -= 1;
-                        minutes = 59;
-                    }
-                    if (hours >= 0) {
-                        workingHours.textContent = `${(hours < 9) ? `0${hours}` : hours}:${(minutes < 9) ? `0${minutes}` : minutes}`;
+                clearInterval(this.emergencyTimer);
+                this.emergencyTimer = setInterval(() => {
+                    try {
+                        let hours = +workingHours.textContent.split(":")[0];
+                        let minutes = +workingHours.textContent.split(":")[1];
+                        if (--minutes < 0) {
+                            hours -= 1;
+                            minutes = 59;
+                        }
+                        if (hours >= 0) {
+                            workingHours.textContent = `${(hours < 9) ? `0${hours}` : hours}:${(minutes < 9) ? `0${minutes}` : minutes}`;
+                        }
+                    } catch (e) {
+                        console.log("Ошибка таймера тревоги", e);
                     }
                 }, 60000);
 

@@ -108,7 +108,9 @@ void loop() {
 
     if (!error){
       if (strcmp(doc["type"], "arduinoStartedMeasurement") == 0 || 
-          strcmp(doc["type"], "arduinoFinishedMeasurement") == 0){
+          strcmp(doc["type"], "arduinoFinishedMeasurement") == 0 || 
+          strcmp(doc["type"], "arduinoEmergency") == 0 ||
+          strcmp(doc["type"], "arduinoEmergencyStopped") == 0){
         client.send(message);
       }
     }
