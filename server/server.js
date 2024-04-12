@@ -45,7 +45,7 @@ const imitationOfVigorousActivity = {
     }),
     arduinoEmergency: JSON.stringify({
         type: "arduinoEmergency",
-        data: {current: 4.2, voltage: 11.9, id: 9}
+        data: {current: 0.6, voltage: 11.9, id: 9}
     }),
     arduinoEmergencyStopped: JSON.stringify({
         type: "arduinoEmergencyStopped",
@@ -53,7 +53,7 @@ const imitationOfVigorousActivity = {
     }),
 }
 
-
+let interval = null;
 // Сокет
 wss.on('connection', (socket) => {
     console.log("Подключение!");
@@ -63,9 +63,11 @@ wss.on('connection', (socket) => {
     };
 
     // Имитация бурной деятельности
-    // let interval = setInterval(() => {
+    socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
+
+    // interval = setInterval(() => {
     //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
-    // }, 1000);
+    // }, 1200000);
     // setTimeout(() => {
     //     clearInterval(interval);
     //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergencyStopped});
@@ -677,16 +679,16 @@ async function emergencyHandler(amperage, voltage, id) {
         const measurements  = await getMeasurementsData(id);
         const emergencies   = await getEmergencyData(id);
 
-        
+
         // добавляем тревоги в историю
         emergencies.forEach((item, i) => {
             item['status'] = 2;
             item.timestamp = new Date(item.timestamp).getTime();
             history.push(item);
         });
-        
+
         current = history.pop();
-        
+
         // Добавляем измерения в историю
         measurements.forEach((item, i) => {
             item['status'] = 1;

@@ -680,7 +680,7 @@ export default class ObjectItem {
         const current = document.createElement("TD");
         const capacity = document.createElement("TD");
         const power = document.createElement("TD");
-        const degradation = document.createElement("TD");
+        const remainder = document.createElement("TD");
         const workingHours = document.createElement("TD");
         const status = document.createElement("TD");
 
@@ -689,7 +689,7 @@ export default class ObjectItem {
         current.textContent = "Сила тока I(A)";
         capacity.textContent = "Емкость C(А/ч)";
         power.textContent = "Мощность P(Вт)";
-        degradation.textContent = "Остаток %";
+        remainder.textContent = "Остаток %";
         workingHours.textContent = "Время работы";
         status.textContent = "Статус";
 
@@ -700,7 +700,7 @@ export default class ObjectItem {
         tr.appendChild(current);
         tr.appendChild(capacity);
         tr.appendChild(power);
-        tr.appendChild(degradation);
+        tr.appendChild(remainder);
         tr.appendChild(workingHours);
         tr.appendChild(status);
         tr.classList.add('table_heading');
@@ -712,10 +712,9 @@ export default class ObjectItem {
         if (this.tbody) this.tbody.remove();
 
         this.tbody = document.createElement("TBODY");
-        this.emergencyTimer = null;
         data.forEach((item, i) => {
             const workingHours = document.createElement("TD");
-            const degradation  = document.createElement("TD");
+            const remainder  = document.createElement("TD");
             const capacity     = document.createElement("TD");
             const voltage      = document.createElement("TD");
             const current      = document.createElement("TD");
@@ -734,8 +733,8 @@ export default class ObjectItem {
                 }
             }
 
-            let date;
             // Если есть таймштамм - формируем дату
+            let date;
             if (item.timestamp) {
                 date = new Date(item.timestamp);
                 date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
@@ -747,79 +746,113 @@ export default class ObjectItem {
             }
 
             let capacityValue = (item.workingHours)
-            ? `${((item.voltage * item.current * item.workingHours / 60) / (item.voltage * 0.7)).toFixed(2)}`
+            ? `${(item.current * item.workingHours / 60).toFixed(2)}`
             : '-';
-            // Переделать на проверку на null
-            th      .textContent = `${date}`
-            power   .textContent = `${item.voltage * item.current || "-"}`;
-            voltage .textContent = `${item.voltage || "-"}`;
-            current .textContent = `${item.current || "-"}`;
-            capacity.textContent =  capacityValue;
 
-            // Расчет деградации
-            let degradationInPercent = '-';
+
+
+            // Расчет отсатка
+            let remainderInPercent = '-';
             if (item.workingHours) {
-                let c1 = (item.current * item.workingHours / 60);
-                let c2 = (this.reference.current * this.reference.workingHours / 60);
-                degradationInPercent = `${(c1 / c2).toFixed(2) * 100}%`;
+                let c1 = (item.current * (item.workingHours / 60));
+                let c2 = (this.reference.current * (this.reference.workingHours / 60));
+                remainderInPercent = `${(c1 / c2).toFixed(2) * 100}%`;
             }
-
-            degradation.textContent = degradationInPercent;
 
             // Рассчет времени работы
             let workingHoursDuration;
 
-            
             // Если есть время работы (начальная и конечная даты)
             if (item.workingHours) {
                 workingHoursDuration = item.workingHours;
+                if (item.status === 2) {
+                    workingHoursDuration = (Math.abs(this.reference.current) * this.reference.workingHours) / Math.abs(item.current);
+                }
                 workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
-                ? Math.floor(workingHoursDuration / 60)
-                : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
-                    ? Math.floor(workingHoursDuration % 60)
-                    : `0${Math.floor(workingHoursDuration % 60)}`}`;
-                    
+                    ? Math.floor(workingHoursDuration / 60)
+                    : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
+                        ? Math.floor(workingHoursDuration % 60)
+                        : `0${Math.floor(workingHoursDuration % 60)}`}`;
             } else {
-                workingHoursDuration = "-:-";
+                workingHoursDuration = "-";
             }
-            if (item.status === 2 && this.current === item) {
-                workingHoursDuration = (Math.abs(this.reference.current) * this.reference.workingHours) / Math.abs(item.current);
-                workingHoursDuration = `${(Math.floor(workingHoursDuration / 60) > 9)
-                ? Math.floor(workingHoursDuration / 60)
-                : `0${Math.floor(workingHoursDuration / 60)}`}:${(Math.floor(workingHoursDuration % 60) > 9)
-                    ? Math.floor(workingHoursDuration % 60)
-                    : `0${Math.floor(workingHoursDuration % 60)}`}`;
-                // console.log("wh", workingHoursDuration);
-                
-                
-            }
-            workingHours.textContent = workingHoursDuration;
 
-            
+            // Заполняем значениями
+            th      .textContent = `${date}`
+            power   .textContent = `${(item.voltage * item.current).toFixed(2) || "-"}`;
+            voltage .textContent = `${(item.voltage).toFixed(2) || "-"}`;
+            current .textContent = `${(item.current).toFixed(2) || "-"}`;
+            capacity.textContent =  capacityValue;
+            remainder.textContent = remainderInPercent;
+            workingHours.textContent = workingHoursDuration;
+            status.textContent = (item.status === 2) ? "Тревога" : "Проверка";
+
             // Обратный отсчет и метка у тревожной записи
             if (this.current === item) {
-                clearInterval(this.emergencyTimer);
-                this.emergencyTimer = setInterval(() => {
-                    try {
-                        let hours = +workingHours.textContent.split(":")[0];
-                        let minutes = +workingHours.textContent.split(":")[1];
-                        if (--minutes < 0) {
-                            hours -= 1;
-                            minutes = 59;
-                        }
-                        if (hours >= 0) {
-                            workingHours.textContent = `${(hours < 9) ? `0${hours}` : hours}:${(minutes < 9) ? `0${minutes}` : minutes}`;
-                        }
-                    } catch (e) {
-                        console.log("Ошибка таймера тревоги", e);
+                // Получаем последнюю проверку и массив текущих записей тревоги
+                let latestTimestamp = new Date(this.reference.timestamp).getTime();
+                let latestObject = this.reference;
+                let currentEmergencyArray = [];
+                for (const obj of this.data) {
+                    if (obj.status === 1
+                        && new Date(obj.timestamp).getTime() > latestTimestamp) {
+                        latestTimestamp = new Date(obj.timestamp).getTime();
+                        latestObject = obj;
+                    } else if (obj.status === 2 && new Date(obj.timestamp).getTime() > new Date(this.timestamp).getTime()) {
+                        currentEmergencyArray.unshift(obj);
                     }
-                }, 60000);
+                }
+
+                // Рассчитываем остаток
+                let end = new Date(latestObject.timestamp).getTime();
+                let start = new Date(latestObject.start_timestamp).getTime();
+
+                if (end && start) latestObject.workingHours = (end - start) / 1000 / 60;
+
+                let latestCapacity = latestObject.current * (latestObject.workingHours / 60);
+                if (!latestCapacity) {
+                    console.log("Проблемы с рассчетом остатка");
+                }
+
+                currentEmergencyArray.forEach((emItem, i) => {
+                    let start;
+                    let end;
+                    if (!i) {
+                        start = new Date(this.timestamp).getTime();
+                        end = new Date(emItem.timestamp).getTime();
+                    } else {
+                        start = new Date(currentEmergencyArray[i - 1].timestamp).getTime();
+                        end = new Date(emItem.timestamp).getTime();
+                    }
+                    let halfCapacity = emItem.current * ((end - start) / 1000 / 3600);
+                    latestCapacity -= halfCapacity;
+                });
+
+                const duration = (latestCapacity / item.current) * 3600;
+                workingHours.textContent = this.getDurationString(duration);
+                capacity.textContent =  latestCapacity;
+
+                setInterval(() => {
+                    let hours = +workingHours.textContent.split(":")[0];
+                    let minutes = +workingHours.textContent.split(":")[1];
+                    let seconds = +workingHours.textContent.split(":")[2];
+                    if (--seconds < 0) {
+                        minutes -= 1;
+                        seconds = 59;
+                    }
+                    if (minutes < 0) {
+                        hours -= 1;
+                        minutes = 59;
+                    }
+                    if (hours >= 0) {
+                        workingHours.textContent = `${(hours <= 9) ? `0${hours}` : hours}:${(minutes <= 9) ? `0${minutes}` : minutes}:${(seconds <= 9) ? `0${seconds}` : seconds}`;
+                    }
+                }, 1000);
 
                 tr.classList.add('alarm');
             }
 
-            status.textContent = (item.status === 2) ? "Тревога" : "Проверка";
-
+            // Закидываем в таблицу
             this.table.appendChild(this.tbody);
             this.tbody.appendChild(tr);
             tr.appendChild(th);
@@ -827,9 +860,21 @@ export default class ObjectItem {
             tr.appendChild(current);
             tr.appendChild(capacity);
             tr.appendChild(power);
-            tr.appendChild(degradation);
+            tr.appendChild(remainder);
             tr.appendChild(workingHours);
             tr.appendChild(status);
         });
+    }
+
+    // Передавать параметр в секундах
+    getDurationString(duration) {
+        let hours = Math.floor(duration / 3600);
+            hours = (hours <= 9) ? `0${hours}` : hours;
+        let minutes = Math.floor((duration % 3600) / 60);
+            minutes = (minutes <= 9) ? `0${minutes}` : minutes;
+        let seconds = Math.floor(duration % 60);
+            seconds = (seconds <= 9) ? `0${seconds}` : seconds;
+        let durationString = `${hours}:${minutes}:${seconds}`;
+        return durationString;
     }
 }
