@@ -863,6 +863,11 @@ export default class ObjectItem {
             tr.appendChild(remainder);
             tr.appendChild(workingHours);
             tr.appendChild(status);
+
+            // Красим
+            if (item === this.reference) {
+                tr.classList.add("check");
+            }
         });
     }
 

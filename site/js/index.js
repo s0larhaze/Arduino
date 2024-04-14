@@ -39,7 +39,7 @@ class App {
             search.placeholder = "Название объекта";
             search.addEventListener("input", () => {
                 this.container.querySelectorAll("li").forEach((item, i) => {
-                    if (item.id.indexOf(search.value) === -1) {
+                    if (item.dataset.search.indexOf(search.value) === -1) {
                         item.classList.add("hidden");
                     } else {
                         item.classList.remove("hidden");
@@ -62,6 +62,7 @@ class App {
                 let objItem = document.createElement("li");
                     objItem.classList.add("objectsItem");
                     objItem.id = "o" + obj.id;
+                    objItem.dataset.search = obj.name;
 
                 let objName = document.createElement("H2");
                     objName.textContent = obj.name;
@@ -114,6 +115,7 @@ class App {
                 let objItem = document.createElement("li");
                     objItem.classList.add("objectsItem");
                     objItem.id = "o" + obj.id;
+                    objItem.dataset.search = obj.name;
 
                 let objName = document.createElement("H2");
                     objName.textContent = obj.name;
@@ -154,6 +156,7 @@ class App {
                 let objItem = document.createElement("li");
                     objItem.classList.add("objectsItem");
                     objItem.id = "o" + obj.id;
+                    objItem.dataset.search = obj.name;
 
                 let objName = document.createElement("H2");
                     objName.textContent = obj.name;
