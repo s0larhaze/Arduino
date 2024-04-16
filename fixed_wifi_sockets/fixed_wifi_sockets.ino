@@ -88,18 +88,23 @@ void setup() {
     Serial.println("Connecting to WiFi...");
     delay(1000);
   }
+
   Serial.println("Connected to WiFi");
+  Serial.println("BRUH");
 
   client.onMessage(onMessageCallback);
   client.onEvent(onEventsCallback);
   client.connect("ws://192.168.33.69:3000/");
-
-  // You can send messages to the server using client.send() method
 }
 
 void loop() {
   client.poll();
 
+  if (!client.available()){
+    client.connect("ws://192.168.33.69:3000/");
+    delay(1000);
+  }
+  
   if (Serial.available() > 0){
     String message = Serial.readString();
 

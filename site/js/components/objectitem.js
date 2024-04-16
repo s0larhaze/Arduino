@@ -714,7 +714,7 @@ export default class ObjectItem {
         this.tbody = document.createElement("TBODY");
         data.forEach((item, i) => {
             const workingHours = document.createElement("TD");
-            const remainder  = document.createElement("TD");
+            const remainder    = document.createElement("TD");
             const capacity     = document.createElement("TD");
             const voltage      = document.createElement("TD");
             const current      = document.createElement("TD");
@@ -779,9 +779,9 @@ export default class ObjectItem {
 
             // Заполняем значениями
             th      .textContent = `${date}`
-            power   .textContent = `${(item.voltage * item.current).toFixed(2) || "-"}`;
-            voltage .textContent = `${(item.voltage).toFixed(2) || "-"}`;
-            current .textContent = `${(item.current).toFixed(2) || "-"}`;
+            power   .textContent = (item.voltage * item.current) ? (item.voltage * item.current).toFixed(2) :  "-";
+            voltage .textContent = (item.voltage) ? item.voltage.toFixed(2) : "-";
+            current .textContent = (item.current) ? item.current.toFixed(2) : "-";
             capacity.textContent =  capacityValue;
             remainder.textContent = remainderInPercent;
             workingHours.textContent = workingHoursDuration;
@@ -828,10 +828,12 @@ export default class ObjectItem {
                     latestCapacity -= halfCapacity;
                 });
 
-                const duration = (latestCapacity / item.current) * 3600;
+                let duration = (latestCapacity / item.current) * 3600;
+                if (duration <= 0) duration = 0;
                 workingHours.textContent = this.getDurationString(duration);
-                capacity.textContent =  latestCapacity;
-
+                console.log(duration);
+                capacity.textContent =  latestCapacity.toFixed(5);
+                let paintingCount = 0;
                 setInterval(() => {
                     let hours = +workingHours.textContent.split(":")[0];
                     let minutes = +workingHours.textContent.split(":")[1];
@@ -847,6 +849,14 @@ export default class ObjectItem {
                     if (hours >= 0) {
                         workingHours.textContent = `${(hours <= 9) ? `0${hours}` : hours}:${(minutes <= 9) ? `0${minutes}` : minutes}:${(seconds <= 9) ? `0${seconds}` : seconds}`;
                     }
+
+                    // Красим)
+                    if(paintingCount) {
+                        tr.style.backgroundColor = "#ff0000";
+                    } else {
+                        tr.style.backgroundColor = "#222222";
+                    }
+                    paintingCount = ++paintingCount % 2;
                 }, 1000);
 
                 tr.classList.add('alarm');

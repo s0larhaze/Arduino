@@ -208,10 +208,10 @@ main {
     background-color: var(--grey);
 }
 
-.alarm {
-    background-color: #00abee !important;
-    /* background-color: var(--red) !important; */
+.table_container tbody .alarm {
+    background-color: var(--red);
     color: #fff !important;
+    transition: 1s;
 }
 .check {
     background-color: var(--green) !important;

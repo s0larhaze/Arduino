@@ -45,11 +45,11 @@ const imitationOfVigorousActivity = {
     }),
     arduinoEmergency: JSON.stringify({
         type: "arduinoEmergency",
-        data: {current: 0.6, voltage: 11.9, id: 9}
+        data: {current: 0.6, voltage: 11.9, id: 1}
     }),
     arduinoEmergencyStopped: JSON.stringify({
         type: "arduinoEmergencyStopped",
-        data: {id: 9}
+        data: {id: 1}
     }),
 }
 
@@ -63,7 +63,7 @@ wss.on('connection', (socket) => {
     };
 
     // Имитация бурной деятельности
-    socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
+    // socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
 
     // interval = setInterval(() => {
     //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
@@ -71,14 +71,27 @@ wss.on('connection', (socket) => {
     // setTimeout(() => {
     //     clearInterval(interval);
     //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergencyStopped});
-    // }, 30000);
+    // }, 0);
 
     socket.onclose = () => {
         console.log('Подключение закрыто');
         connectedUsers.forEach((item, i) => {
-            if (item === socket) connectedUsers.splice(i, 1);
+            if (item === socket) {
+                connectedUsers.splice(i, 1);
+                console.log("user wish id: " + i + " was disconected");
+            }
         });
+        for (let key in connectedObjects) {
+            if (connectedObjects[key] === socket) {
+                connectedObjects[key].splice(i, 1);
+                console.log("object wish id: " + key + " was disconected");
+            }
+        }
     };
+
+    socket.onerror = () => {
+        console.log("socket error: ", socket);
+    }
 })
 
 // Обработка сообщений сокета
@@ -704,7 +717,7 @@ async function emergencyHandler(amperage, voltage, id) {
             };
         // Если есть данные по текущей сработке
         if (current) response.data['current'] = current;
-        console.log("resp", response);
+        // console.log("resp", response);
 
         connectedUsers.forEach((item, i) => {
             item.send(JSON.stringify(response));
