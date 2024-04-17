@@ -84,6 +84,10 @@ textarea {
     color: #fff !important;
 }
 
+.unactive {
+    background-color: #999 !important;
+}
+
 .hidden {
     display: none !important;
 }

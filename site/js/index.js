@@ -143,6 +143,48 @@ class App {
                 this.container.appendChild(objItem);
             });
         }
+        const printNoActive    = () => {
+            // Заголовок недоступных
+            let heading = document.createElement("H2");
+                heading.classList.add("objects_heading");
+                heading.textContent = "Недоступны";
+            this.container.appendChild(heading);
+
+            // Выводим объекты со статусом недоступны
+            this.objects.forEach((obj, i) => {
+                if (obj.status !== -1) return;
+                let objItem = document.createElement("li");
+                    objItem.classList.add("objectsItem");
+                    objItem.id = "o" + obj.id;
+                    objItem.dataset.search = obj.name;
+                    objItem.classList.add("unactive");
+
+                let objName = document.createElement("H2");
+                    objName.textContent = obj.name;
+
+                let objStatus = document.createElement("P");
+                    objStatus.textContent = "Недоступен";
+
+                let timer = document.createElement("SPAN");
+                    timer.textContent = "-:-:-";
+
+                objItem.appendChild(objName);
+                objItem.appendChild(objStatus);
+                objItem.appendChild(timer);
+
+                // При клике создаем окошко с данными об объекте поверх главного экрана
+                objItem.addEventListener("click", (event) => {
+                    if (this.objectItems[obj.id]) {
+                        this.objectItems[obj.id].restart(obj.name, obj.status, obj.timestamp);
+                    } else {
+                        this.objectItems[obj.id] = new ObjectItem(obj.id, obj.name, obj.status, this);
+                    }
+                });
+
+                // Закидываем в список
+                this.container.appendChild(objItem);
+            });
+        }
         const printMeasurement = () => {
             // Заголовок Проверок
             let heading = document.createElement("H2");
@@ -201,6 +243,7 @@ class App {
         printEmergency();
         printMeasurement();
         printNormalWork();
+        printNoActive();
     }
 
     handleObjectsChanges(newObjects) {
@@ -235,11 +278,19 @@ class App {
                     div.classList.add("alarmWindow");
                     div.id = `alarmWindow${this.id}`;
                     // Сообщение
-                    (newObj.status == 2)
-                        // Тревога
-                        ? div.innerHTML = `На объекте ${newObj.name} произошла черезвычайная ситуация. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`
-                        // Проверка
-                        : div.innerHTML = `На объекте ${newObj.name} началась проверка. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
+                    switch (newObj.status) {
+                        case 2:
+                            div.innerHTML = `На объекте ${newObj.name} произошла черезвычайная ситуация. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
+                            break;
+                        case 1:
+                            div.innerHTML = `На объекте ${newObj.name} началась проверка. <br> Нажмите на это окно, чтобы перейти к просмотру объекта`;
+                            break;
+                        case -1:
+                            div.innerHTML = `Не удалось получить ответ от объекта ${newObj.name}. <br> Скорее всего, объект недоступен`;
+                            break;
+                        default:
+
+                    }
 
                     // Кнопка закрытия
                     let closeButton = document.createElement("BUTTON");

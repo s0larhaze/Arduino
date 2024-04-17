@@ -20,8 +20,10 @@ const server = createServer(app);
 
 const wss = new WebSocket.Server({ server });
 
-let connectedObjects = {};
 let connectedUsers   = [];
+let unactiveObjects  = [];
+let connectedObjects = {};
+
 
 app.use(express.json());
 app.use("/socket", express.static('socket'))
@@ -57,6 +59,41 @@ let interval = null;
 // Сокет
 wss.on('connection', (socket) => {
     console.log("Подключение!");
+
+    setInterval(async () => {
+        unactiveObjects.forEach((item, i) => {
+            delete connectedObjects[item];
+        });
+
+        const result = await checkObjects();
+        result.forEach((item, i) => {
+            let f = false;
+            let id = item.id;
+            for (let key in connectedObjects) {
+                if (key === item.id) {
+                    f = true;
+                    connectedObjects[key].send(JSON.stringify({type: "isActive", data: null}));
+                    unactiveObjects.push(key);
+                }
+            }
+            if (!f) {
+                changeObject(id);
+                getObjectsHandler(socket, "objectsChanges");
+            }
+        });
+    }, 300000);
+
+
+    async function checkObjects() {
+        const sql = `SELECT id, status FROM objects`;
+        const result = await executeQuery(sql);
+
+        return result;
+    }
+    async function changeObject(id) {
+        const sql = `UPDATE objects SET status = -1 WHERE id = ?`;
+        await executeQuery(sql, [id]);
+    }
 
     socket.onmessage = (event) => {
         handleMessage(event.data, socket);
@@ -120,6 +157,13 @@ function handleMessage(message, ws) {
         // От Ардуино
         case 'arduinoObjectRegistration':
             objectRegistrationHandler(object_id, ws);
+            break;
+        case 'isActive':
+            let index = unactiveObjects.indexOf(key);
+            if (index >= 0) {
+                unactiveObjects.splice(index, 1);
+            }
+
             break;
         case 'arduinoStartedMeasurement':
             measurementStartedDBOperation(object_id);
@@ -486,6 +530,7 @@ async function objectRegistrationHandler(object_id, ws) {
         console.log("object_id cannot be empty, undefined or null");
         return;
     }
+
     async function checkIfObjectPresentInDB() {
         const sql = `SELECT COUNT(*) as count FROM objects WHERE id = ?`
         const result = await executeQuery(sql, [object_id]);

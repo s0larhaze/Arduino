@@ -108,7 +108,7 @@ export default class ObjectItem {
         this.startCheck.type = "button";
         this.startCheck.name = "startCheck";
         this.startCheck.classList.add("start_check");
-        this.startCheck.disabled = !!this.status;
+        this.startCheck.disabled = (this.status !== 0) ? true : false;
         this.startCheck.addEventListener('click', (event) => {
             this.startChecking();
         });
@@ -133,26 +133,26 @@ export default class ObjectItem {
         });
 
         // Выбор пина
-        this.selectPin.name = "selectPin";
-        this.selectPin.classList.add("select");
-
-        for (let i = 1; i < 7; i++) {
-            let op = document.createElement("OPTION");
-                op.textContent = `Пин ${i}`;
-                op.value = i;
-            this.selectPin.appendChild(op);
-        }
-        let op = document.createElement("OPTION");
-            op.textContent = `Выберите пин`;
-            op.value = "null";
-            op.selected = true;
-        this.selectPin.appendChild(op);
-
-        this.selectPin.addEventListener("change", (event) => {
-            const value = event.target.value;
-
-            // Что-то отправить на сервер
-        })
+        // this.selectPin.name = "selectPin";
+        // this.selectPin.classList.add("select");
+        //
+        // for (let i = 1; i < 7; i++) {
+        //     let op = document.createElement("OPTION");
+        //         op.textContent = `Пин ${i}`;
+        //         op.value = i;
+        //     this.selectPin.appendChild(op);
+        // }
+        // let op = document.createElement("OPTION");
+        //     op.textContent = `Выберите пин`;
+        //     op.value = "null";
+        //     op.selected = true;
+        // this.selectPin.appendChild(op);
+        //
+        // this.selectPin.addEventListener("change", (event) => {
+        //     const value = event.target.value;
+        //
+        //     // Что-то отправить на сервер
+        // })
         // Кнопка сброса данных
         this.clearBut.textContent = "Очистить данные";
         this.clearBut.type = "button";
@@ -217,7 +217,7 @@ export default class ObjectItem {
         this.header.appendChild(this.startCheck);
         this.header.appendChild(this.changeName);
         this.header.appendChild(this.changeNameBut);
-        this.header.appendChild(this.selectPin);
+        // this.header.appendChild(this.selectPin);
         this.header.appendChild(this.clearBut);
         this.header.appendChild(this.deleteBut);
         this.header.appendChild(this.exportToExcelBut);
