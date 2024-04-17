@@ -56,44 +56,45 @@ const imitationOfVigorousActivity = {
 }
 
 let interval = null;
+
+setInterval(async () => {
+    unactiveObjects.forEach((item, i) => {
+        delete connectedObjects[item];
+    });
+
+    const result = await checkObjects();
+    result.forEach((item, i) => {
+        let f = false;
+        let id = item.id;
+        for (let key in connectedObjects) {
+            if (key === item.id) {
+                f = true;
+                connectedObjects[key].send(JSON.stringify({type: "isActive", data: null}));
+                unactiveObjects.push(key);
+            }
+        }
+        if (!f) {
+            changeObject(id);
+            getObjectsHandler(null, "objectsChanges");
+        }
+    });
+}, 300000);
+
+
+async function checkObjects() {
+    const sql = `SELECT id, status FROM objects`;
+    const result = await executeQuery(sql);
+
+    return result;
+}
+async function changeObject(id) {
+    const sql = `UPDATE objects SET status = -1 WHERE id = ?`;
+    await executeQuery(sql, [id]);
+}
+
 // Сокет
 wss.on('connection', (socket) => {
     console.log("Подключение!");
-
-    setInterval(async () => {
-        unactiveObjects.forEach((item, i) => {
-            delete connectedObjects[item];
-        });
-
-        const result = await checkObjects();
-        result.forEach((item, i) => {
-            let f = false;
-            let id = item.id;
-            for (let key in connectedObjects) {
-                if (key === item.id) {
-                    f = true;
-                    connectedObjects[key].send(JSON.stringify({type: "isActive", data: null}));
-                    unactiveObjects.push(key);
-                }
-            }
-            if (!f) {
-                changeObject(id);
-                getObjectsHandler(socket, "objectsChanges");
-            }
-        });
-    }, 300000);
-
-
-    async function checkObjects() {
-        const sql = `SELECT id, status FROM objects`;
-        const result = await executeQuery(sql);
-
-        return result;
-    }
-    async function changeObject(id) {
-        const sql = `UPDATE objects SET status = -1 WHERE id = ?`;
-        await executeQuery(sql, [id]);
-    }
 
     socket.onmessage = (event) => {
         handleMessage(event.data, socket);
@@ -243,7 +244,7 @@ function userRegistration(ws) {
 }
 
 // Возвращает список объектов
-async function getObjectsHandler(ws, type = "getObjects") {
+async function getObjectsHandler(ws = null, type = "getObjects") {
     const objects = [];
 
     async function selectObjects() {
