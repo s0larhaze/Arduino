@@ -20,7 +20,8 @@ void emergency() {
   unsigned long emergency_time = 0;
 
   float voltage = analogRead(VOLTAGE_IN) * (14.0 / 1023.0);
-  float current = ((analogRead(CURRENT_IN) * 5.0 / 1023.0) - 2.535) / 0.185;  //analogRead(CURRENT_IN);
+  float current = ((analogRead(CURRENT_IN) * 5.0 / 1023.0) - 2.498) / 0.066;  //analogRead(CURRENT_IN);
+  current = abs(current);
 
   //while (emergency_time < MOCK_EMERGENCY_LIMIT) {
   JsonDocument jsdoc;
@@ -68,7 +69,8 @@ void measureBattery() {
     sensorValue2 = analogRead(CURRENT_IN);
     float voltage = sensorValue * 14.0 / 1024.0;     // Расчет напряжения
     float voltage2 = sensorValue2 * 5.0 / 1024.0;
-    float current = (voltage2 - 2.535) / 0.185;        // Расчет тока
+    float current = (voltage2 - 2.498) / 0.066;        // Расчет тока
+    current = abs(current);
 
     // float voltage = analogRead(VOLTAGE_IN) * (14.0 / 1023.0);
     // float current = (analogRead(A0) - 7.0) / 0.185;  //analogRead(CURRENT_IN);
@@ -100,7 +102,7 @@ void measureBattery() {
       break;
     }
 
-    Serial.println("{ \"type\": \"arduinoChtoto\", \"data\": " + String(voltage) + " }");
+    Serial.println("{ \"type\": \"arduinoChtoto\", \"data\": " + String(voltage) + ", " + String(current) + " }");
     time_measuring += (MEASURE_DELAY / 1000);
   }
 }
