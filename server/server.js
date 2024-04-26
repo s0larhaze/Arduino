@@ -57,28 +57,35 @@ const imitationOfVigorousActivity = {
 
 let interval = null;
 
-setInterval(async () => {
+async function itervalFunc() {
     unactiveObjects.forEach((item, i) => {
-        delete connectedObjects[item];
+        // delete connectedObjects[item];
+        unactiveObjects.splice(i, 1);
     });
 
+    
+
     const result = await checkObjects();
-    result.forEach((item, i) => {
+    result.forEach(async function f(item, i) {
         let f = false;
         let id = item.id;
         for (let key in connectedObjects) {
-            if (key === item.id) {
+            console.log(key == item.id, item.id, key);
+            if (key == item.id) {
                 f = true;
                 connectedObjects[key].send(JSON.stringify({type: "isActive", data: null}));
                 unactiveObjects.push(key);
             }
         }
         if (!f) {
-            changeObject(id);
+            await changeObject(id);
             getObjectsHandler(null, "objectsChanges");
         }
     });
-}, 300000);
+}
+setInterval(() => {
+    itervalFunc();
+}, 5000);
 
 
 async function checkObjects() {
@@ -121,7 +128,7 @@ wss.on('connection', (socket) => {
         });
         for (let key in connectedObjects) {
             if (connectedObjects[key] === socket) {
-                connectedObjects[key].splice(i, 1);
+                delete connectedObjects[key];
                 console.log("object wish id: " + key + " was disconected");
             }
         }
@@ -150,7 +157,7 @@ function handleMessage(message, ws) {
             object_name  = data.name;
         }
     } catch (e) {
-        console.log("Сообщение не пришло.", e, message);
+        console.log("Сообщение не пришло.", e, message, type);
     }
     console.log('message_json', message_json);
 
@@ -160,7 +167,7 @@ function handleMessage(message, ws) {
             objectRegistrationHandler(object_id, ws);
             break;
         case 'isActive':
-            let index = unactiveObjects.indexOf(key);
+            let index = unactiveObjects.indexOf(object_id);
             if (index >= 0) {
                 unactiveObjects.splice(index, 1);
             }
@@ -549,6 +556,9 @@ async function objectRegistrationHandler(object_id, ws) {
     const count = await checkIfObjectPresentInDB();
     if (!count) createObjectInDB();
     connectedObjects[object_id] = ws;
+    const sql = `UPDATE objects SET status = 0 WHERE id = ?`;
+    await executeQuery(sql, [object_id]);
+    getObjectsHandler(null, "objectsChanges");
 }
 
 // Запускает проверку на ардуино
