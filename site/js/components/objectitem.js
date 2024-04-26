@@ -336,11 +336,13 @@ export default class ObjectItem {
     exportToExcel() {
         const data = [];
         this.data.forEach((item, i) => {
+            const voltageString = item.voltage
+            const currentString = item.current
             data.push({
                 name: this.name,
                 status: item.status,
-                voltage: item.status,
-                current: item.status,
+                voltage: voltageString.toString().replace(".", ","),
+                current: currentString.toString().replace(".", ","),
                 start_timestamp: (item.status === 2) ? '-' : new Date(item.start_timestamp),
                 end_timestamp: new Date(item.timestamp),
                 workingHours: (item.status === 2) ? "-" : item.workingHours,
