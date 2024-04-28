@@ -751,8 +751,6 @@ export default class ObjectItem {
             ? `${(item.current * item.workingHours / 60).toFixed(2)}`
             : '-';
 
-
-
             // Расчет отсатка
             let remainderInPercent = '-';
             if (item.workingHours) {
@@ -800,7 +798,7 @@ export default class ObjectItem {
                         && new Date(obj.timestamp).getTime() > latestTimestamp) {
                         latestTimestamp = new Date(obj.timestamp).getTime();
                         latestObject = obj;
-                    } else if (obj.status === 2 && new Date(obj.timestamp).getTime() > new Date(this.timestamp).getTime()) {
+                    } else if (obj.status === 2 && new Date(obj.timestamp).getTime() >= new Date(this.timestamp).getTime()) {
                         currentEmergencyArray.unshift(obj);
                     }
                 }
@@ -816,25 +814,39 @@ export default class ObjectItem {
                     console.log("Проблемы с рассчетом остатка");
                 }
 
-                currentEmergencyArray.forEach((emItem, i) => {
-                    let start;
-                    let end;
-                    if (!i) {
-                        start = new Date(this.timestamp).getTime();
-                        end = new Date(emItem.timestamp).getTime();
-                    } else {
-                        start = new Date(currentEmergencyArray[i - 1].timestamp).getTime();
-                        end = new Date(emItem.timestamp).getTime();
-                    }
-                    let halfCapacity = emItem.current * ((end - start) / 1000 / 3600);
-                    latestCapacity -= halfCapacity;
-                });
 
-                let duration = (latestCapacity / item.current) * 3600;
+
+
+
+
+                // Расчет времени
+                function calculateTimeRemaining(initialVoltage, currentVoltage, startTime, latestObject) {
+                    // Предполагаем, что startTime представляет собой момент времени в миллисекундах
+                    const currentTime = Date.now();
+                    const elapsedTime = (currentTime - new Date(startTime).getTime()) / 1000;
+
+                    const voltageChangeRateInPercent = (currentVoltage -  10.9) / (initialVoltage -  10.9) * 100;
+                    // Если первая запись
+                    if (voltageChangeRateInPercent === 100) {
+                        return latestObject.workingHours * 60;
+                    }
+
+                    const voltageChangeTime = elapsedTime / (100 - voltageChangeRateInPercent);
+
+                    const timeRemainingInSeconds = voltageChangeTime * voltageChangeRateInPercent;
+
+                    return timeRemainingInSeconds;
+                }
+
+                const index1 = (currentEmergencyArray.length > 0) ? currentEmergencyArray.length - 1 : 0;
+                let lastWrite  = currentEmergencyArray[index1].voltage;
+                let firstWrite = currentEmergencyArray[0].voltage;
+
+                let timeRemaining = calculateTimeRemaining(firstWrite, lastWrite, this.timestamp, latestObject);
+
+                let duration = timeRemaining || 0;
                 if (duration <= 0) duration = 0;
                 workingHours.textContent = this.getDurationString(duration);
-                console.log(duration);
-                capacity.textContent =  latestCapacity.toFixed(5);
                 let paintingCount = 0;
                 setInterval(() => {
                     let hours = +workingHours.textContent.split(":")[0];

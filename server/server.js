@@ -45,13 +45,15 @@ const imitationOfVigorousActivity = {
         type: "arduinoFinishedMeasurement",
         data: {avg_current: 4.2, avg_voltage: 11.9, id: 9}
     }),
-    arduinoEmergency: JSON.stringify({
-        type: "arduinoEmergency",
-        data: {current: 0.6, voltage: 11.9, id: 1}
-    }),
+    arduinoEmergency: (obj) => {
+        return JSON.stringify({
+            type: "arduinoEmergency",
+            data: {current: 0.6, voltage: obj.voltage, id: 9}
+        })
+    },
     arduinoEmergencyStopped: JSON.stringify({
         type: "arduinoEmergencyStopped",
-        data: {id: 1}
+        data: {id: 9}
     }),
 }
 
@@ -63,7 +65,7 @@ async function itervalFunc() {
         unactiveObjects.splice(i, 1);
     });
 
-    
+
 
     const result = await checkObjects();
     result.forEach(async function f(item, i) {
@@ -110,9 +112,12 @@ wss.on('connection', (socket) => {
     // Имитация бурной деятельности
     // socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
 
+    // let voltage = 13.8;
+    // clearInterval(interval);
     // interval = setInterval(() => {
-    //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency});
-    // }, 1200000);
+    //     voltage -= 0.1;
+    //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency({voltage})});
+    // }, 10000);
     // setTimeout(() => {
     //     clearInterval(interval);
     //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergencyStopped});
