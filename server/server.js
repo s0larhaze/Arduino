@@ -115,7 +115,11 @@ wss.on('connection', (socket) => {
     // let voltage = 13.8;
     // clearInterval(interval);
     // interval = setInterval(() => {
-    //     voltage -= 0.1;
+    //     if (voltage > 12) {
+    //         voltage -= 0.5;
+    //     } else {
+    //         voltage -= 0.1;
+    //     }
     //     socket.onmessage({data: imitationOfVigorousActivity.arduinoEmergency({voltage})});
     // }, 10000);
     // setTimeout(() => {

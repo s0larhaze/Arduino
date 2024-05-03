@@ -1,4 +1,6 @@
 import objectExporter from "../libs/index.js";
+import config         from "../conf.js";
+
 
 // clearData ожидает, что придет объект с полями: status bool и (reason при ошибке)
 // startChecking ожидает, что придет объект с полями: status bool и (reason при ошибке)
@@ -132,27 +134,6 @@ export default class ObjectItem {
             this.changeObjectName();
         });
 
-        // Выбор пина
-        // this.selectPin.name = "selectPin";
-        // this.selectPin.classList.add("select");
-        //
-        // for (let i = 1; i < 7; i++) {
-        //     let op = document.createElement("OPTION");
-        //         op.textContent = `Пин ${i}`;
-        //         op.value = i;
-        //     this.selectPin.appendChild(op);
-        // }
-        // let op = document.createElement("OPTION");
-        //     op.textContent = `Выберите пин`;
-        //     op.value = "null";
-        //     op.selected = true;
-        // this.selectPin.appendChild(op);
-        //
-        // this.selectPin.addEventListener("change", (event) => {
-        //     const value = event.target.value;
-        //
-        //     // Что-то отправить на сервер
-        // })
         // Кнопка сброса данных
         this.clearBut.textContent = "Очистить данные";
         this.clearBut.type = "button";
@@ -838,12 +819,19 @@ export default class ObjectItem {
                     return timeRemainingInSeconds;
                 }
 
-                const index1 = (currentEmergencyArray.length > 0) ? currentEmergencyArray.length - 1 : 0;
-                let lastWrite  = currentEmergencyArray[index1].voltage;
+                let lastWrite = currentEmergencyArray[0].voltage;
                 let firstWrite = currentEmergencyArray[0].voltage;
 
-                let timeRemaining = calculateTimeRemaining(firstWrite, lastWrite, this.timestamp, latestObject);
+                for (let key in currentEmergencyArray) {
+                    item = currentEmergencyArray[key];
+                    if (item.voltage < 12) {
+                        firstWrite = item.voltage;
+                        lastWrite = currentEmergencyArray[currentEmergencyArray.length - 1].voltage;
+                        break;
+                    }
+                }
 
+                let timeRemaining = calculateTimeRemaining(firstWrite, lastWrite, this.timestamp, latestObject);
                 let duration = timeRemaining || 0;
                 if (duration <= 0) duration = 0;
                 workingHours.textContent = this.getDurationString(duration);
