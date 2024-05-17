@@ -720,12 +720,21 @@ export default class ObjectItem {
             let date;
             if (item.timestamp) {
                 date = new Date(item.timestamp);
-                date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
             } else if (item.start_timestamp) {
                 date = new Date(item.start_timestamp);
-                date = `${date.getFullYear()}.${date.getMonth() + 1}.${date.getDay()}, ${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
             } else {
                 date = "-";
+            }
+
+            if (date !== "-") {
+                const day = String(date.getDate()).padStart(2, '0');
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const year = date.getFullYear();
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+
+                date = `${day}.${month}.${year} ${hours}:${minutes}:${seconds}`;
             }
 
             let capacityValue = (item.workingHours)
@@ -819,19 +828,19 @@ export default class ObjectItem {
                     return timeRemainingInSeconds;
                 }
 
-                let lastWrite = currentEmergencyArray[0].voltage;
-                let firstWrite = currentEmergencyArray[0].voltage;
+                let lastWrite = currentEmergencyArray[0];
+                let firstWrite = currentEmergencyArray[0];
 
                 for (let key in currentEmergencyArray) {
                     item = currentEmergencyArray[key];
                     if (item.voltage < 12) {
-                        firstWrite = item.voltage;
-                        lastWrite = currentEmergencyArray[currentEmergencyArray.length - 1].voltage;
+                        firstWrite = item;
+                        lastWrite = currentEmergencyArray[currentEmergencyArray.length - 1];
                         break;
                     }
                 }
 
-                let timeRemaining = calculateTimeRemaining(firstWrite, lastWrite, this.timestamp, latestObject);
+                let timeRemaining = calculateTimeRemaining(firstWrite.voltage, lastWrite.voltage, firstWrite.timestamp, latestObject);
                 let duration = timeRemaining || 0;
                 if (duration <= 0) duration = 0;
                 workingHours.textContent = this.getDurationString(duration);
@@ -893,5 +902,9 @@ export default class ObjectItem {
             seconds = (seconds <= 9) ? `0${seconds}` : seconds;
         let durationString = `${hours}:${minutes}:${seconds}`;
         return durationString;
+    }
+
+    culcTimeRemining() {
+
     }
 }
