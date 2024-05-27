@@ -778,100 +778,110 @@ export default class ObjectItem {
             status.textContent = (item.status === 2) ? "Тревога" : "Проверка";
 
             // Обратный отсчет и метка у тревожной записи
-            if (this.current === item) {
-                // Получаем последнюю проверку и массив текущих записей тревоги
-                let latestTimestamp = new Date(this.reference.timestamp).getTime();
-                let latestObject = this.reference;
-                let currentEmergencyArray = [];
-                for (const obj of this.data) {
-                    if (obj.status === 1
-                        && new Date(obj.timestamp).getTime() > latestTimestamp) {
-                        latestTimestamp = new Date(obj.timestamp).getTime();
-                        latestObject = obj;
-                    } else if (obj.status === 2 && new Date(obj.timestamp).getTime() >= new Date(this.timestamp).getTime()) {
-                        currentEmergencyArray.unshift(obj);
-                    }
-                }
+            // Обратный отсчет и метка у тревожной записи
+if (this.current === item) {
+    // Получаем последнюю проверку и массив текущих записей тревоги
+    let latestTimestamp = new Date(this.reference.timestamp).getTime();
+    let latestObject = this.reference;
+    let currentEmergencyArray = [];
+    for (const obj of this.data) {
+        if (obj.status === 1
+            && new Date(obj.timestamp).getTime() > latestTimestamp) {
+            latestTimestamp = new Date(obj.timestamp).getTime();
+            latestObject = obj;
+        } else if (obj.status === 2 && new Date(obj.timestamp).getTime() >= new Date(this.timestamp).getTime()) {
+            currentEmergencyArray.unshift(obj);
+        }
+    }
 
-                // Рассчитываем остаток
-                let end = new Date(latestObject.timestamp).getTime();
-                let start = new Date(latestObject.start_timestamp).getTime();
+    // Рассчитываем остаток
+    let end = new Date(latestObject.timestamp).getTime();
+    let start = new Date(latestObject.start_timestamp).getTime();
 
-                if (end && start) latestObject.workingHours = (end - start) / 1000 / 60;
+    if (end && start) latestObject.workingHours = (end - start) / 1000 / 60;
 
-                let latestCapacity = latestObject.current * (latestObject.workingHours / 60);
-                if (!latestCapacity) {
-                    console.log("Проблемы с рассчетом остатка");
-                }
+    if (!latestObject.workingHours) {
+        console.log("Проблемы с рассчетом остатка");
+    }
+
+    // Функция расчета оставшегося времени работы батареи
+    function calculateTimeRemaining(referenceWorkingHours, voltage, current, elapsedMinutes) {
+        let capacityModifier;
+        if (voltage <= 11.1) {
+            capacityModifier = 0.25;
+        } else if (voltage <= 11.5) {
+            capacityModifier = 0.5;
+        } else if (voltage <= 11.8) {
+            capacityModifier = 0.75;
+        } else if (voltage <= 12) {
+            capacityModifier = 1.0;
+        } else {
+            capacityModifier = 1.0; // Если напряжение выше 12В, берем 100% емкости
+        }
+
+        // Рассчитываем модифицированное время работы
+        const adjustedWorkingHours = referenceWorkingHours * capacityModifier;
+
+        // Время работы в минутах с учетом текущей силы тока
+        const totalTime = (adjustedWorkingHours * 60) / current;
+
+        // Вычитаем время, прошедшее с момента начала тревоги
+        console.log(totalTime, elapsedMinutes);
+        const remainingTime = totalTime - elapsedMinutes;
+
+        return remainingTime > 0 ? remainingTime : 0; // Возвращаем 0, если время отрицательное
+    }
+
+    let lastWrite = currentEmergencyArray[0];
+    let firstWrite = currentEmergencyArray[0];
+
+    for (let key in currentEmergencyArray) {
+        item = currentEmergencyArray[key];
+        if (item.voltage < 12) {
+            firstWrite = item;
+            lastWrite = currentEmergencyArray[currentEmergencyArray.length - 1];
+            break;
+        }
+    }
+
+    let referenceWorkingHours = this.reference.workingHours; // Время работы из референсной записи
+    let startTimestamp = new Date(this.timestamp).getTime(); // Время начала тревоги
+    let elapsedMinutes = (Date.now() - startTimestamp) / 1000; // Время, прошедшее с момента начала тревоги в минутах
+    let timeRemaining = calculateTimeRemaining(referenceWorkingHours, lastWrite.voltage, lastWrite.current, elapsedMinutes);
+    let duration = timeRemaining || 0;
+    if (duration <= 0) duration = 0;
+    workingHours.textContent = this.getDurationString(duration);
+    let paintingCount = 0;
+    setInterval(() => {
+        let hours = +workingHours.textContent.split(":")[0];
+        let minutes = +workingHours.textContent.split(":")[1];
+        let seconds = +workingHours.textContent.split(":")[2];
+        if (--seconds < 0) {
+            minutes -= 1;
+            seconds = 59;
+        }
+        if (minutes < 0) {
+            hours -= 1;
+            minutes = 59;
+        }
+        if (hours >= 0) {
+            workingHours.textContent = `${(hours <= 9) ? `0${hours}` : hours}:${(minutes <= 9) ? `0${minutes}` : minutes}:${(seconds <= 9) ? `0${seconds}` : seconds}`;
+        }
+
+        // Красим
+        if (paintingCount) {
+            tr.style.backgroundColor = "#ff0000";
+        } else {
+            tr.style.backgroundColor = "#222222";
+        }
+        paintingCount = ++paintingCount % 2;
+    }, 1000);
+
+    tr.classList.add('alarm');
+}
 
 
 
-
-
-
-                // Расчет времени
-                function calculateTimeRemaining(initialVoltage, currentVoltage, startTime, latestObject) {
-                    // Предполагаем, что startTime представляет собой момент времени в миллисекундах
-                    const currentTime = Date.now();
-                    const elapsedTime = (currentTime - new Date(startTime).getTime()) / 1000;
-
-                    const voltageChangeRateInPercent = (currentVoltage -  10.9) / (initialVoltage -  10.9) * 100;
-                    // Если первая запись
-                    if (voltageChangeRateInPercent === 100) {
-                        return latestObject.workingHours * 60;
-                    }
-
-                    const voltageChangeTime = elapsedTime / (100 - voltageChangeRateInPercent);
-
-                    const timeRemainingInSeconds = voltageChangeTime * voltageChangeRateInPercent;
-
-                    return timeRemainingInSeconds;
-                }
-
-                let lastWrite = currentEmergencyArray[0];
-                let firstWrite = currentEmergencyArray[0];
-
-                for (let key in currentEmergencyArray) {
-                    item = currentEmergencyArray[key];
-                    if (item.voltage < 12) {
-                        firstWrite = item;
-                        lastWrite = currentEmergencyArray[currentEmergencyArray.length - 1];
-                        break;
-                    }
-                }
-
-                let timeRemaining = calculateTimeRemaining(firstWrite.voltage, lastWrite.voltage, firstWrite.timestamp, latestObject);
-                let duration = timeRemaining || 0;
-                if (duration <= 0) duration = 0;
-                workingHours.textContent = this.getDurationString(duration);
-                let paintingCount = 0;
-                setInterval(() => {
-                    let hours = +workingHours.textContent.split(":")[0];
-                    let minutes = +workingHours.textContent.split(":")[1];
-                    let seconds = +workingHours.textContent.split(":")[2];
-                    if (--seconds < 0) {
-                        minutes -= 1;
-                        seconds = 59;
-                    }
-                    if (minutes < 0) {
-                        hours -= 1;
-                        minutes = 59;
-                    }
-                    if (hours >= 0) {
-                        workingHours.textContent = `${(hours <= 9) ? `0${hours}` : hours}:${(minutes <= 9) ? `0${minutes}` : minutes}:${(seconds <= 9) ? `0${seconds}` : seconds}`;
-                    }
-
-                    // Красим)
-                    if(paintingCount) {
-                        tr.style.backgroundColor = "#ff0000";
-                    } else {
-                        tr.style.backgroundColor = "#222222";
-                    }
-                    paintingCount = ++paintingCount % 2;
-                }, 1000);
-
-                tr.classList.add('alarm');
-            }
 
             // Закидываем в таблицу
             this.table.appendChild(this.tbody);
