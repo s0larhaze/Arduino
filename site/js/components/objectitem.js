@@ -805,7 +805,7 @@ if (this.current === item) {
     }
 
     // Функция расчета оставшегося времени работы батареи
-    function calculateTimeRemaining(referenceWorkingHours, voltage, current, elapsedMinutes) {
+    function calculateTimeRemaining(referenceCopacity, voltage, current, elapsedMinutes) {
         let capacityModifier;
         if (voltage <= 11.1) {
             capacityModifier = 0.25;
@@ -820,13 +820,13 @@ if (this.current === item) {
         }
 
         // Рассчитываем модифицированное время работы
-        const adjustedWorkingHours = referenceWorkingHours * capacityModifier;
+        const adjustedCopacity = referenceCopacity * capacityModifier;
 
         // Время работы в минутах с учетом текущей силы тока
-        const totalTime = (adjustedWorkingHours * 60) / current;
+        const totalTime = adjustedCopacity / current * 3600;
 
         // Вычитаем время, прошедшее с момента начала тревоги
-        console.log(totalTime, elapsedMinutes);
+        // console.log(totalTime, elapsedMinutes);
         const remainingTime = totalTime - elapsedMinutes;
 
         return remainingTime > 0 ? remainingTime : 0; // Возвращаем 0, если время отрицательное
@@ -843,11 +843,13 @@ if (this.current === item) {
             break;
         }
     }
+    console.log();
+    let referenceCopacity = (this.reference.current * this.reference.workingHours / 60).toFixed(2);
+    console.log(referenceCopacity);
 
-    let referenceWorkingHours = this.reference.workingHours; // Время работы из референсной записи
     let startTimestamp = new Date(this.timestamp).getTime(); // Время начала тревоги
     let elapsedMinutes = (Date.now() - startTimestamp) / 1000; // Время, прошедшее с момента начала тревоги в минутах
-    let timeRemaining = calculateTimeRemaining(referenceWorkingHours, lastWrite.voltage, lastWrite.current, elapsedMinutes);
+    let timeRemaining = calculateTimeRemaining(referenceCopacity, lastWrite.voltage, lastWrite.current, elapsedMinutes);
     let duration = timeRemaining || 0;
     if (duration <= 0) duration = 0;
     workingHours.textContent = this.getDurationString(duration);
